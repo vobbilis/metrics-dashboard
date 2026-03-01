@@ -25,8 +25,9 @@ describe('API Client', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: () => Promise.resolve(mockAlerts),
-      })
+      } as Response)
 
       const result = await fetchAlerts()
 
@@ -38,7 +39,7 @@ describe('API Client', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-      })
+      } as Response)
 
       await expect(fetchAlerts()).rejects.toThrow('Failed to fetch alerts: 500')
     })
@@ -65,8 +66,9 @@ describe('API Client', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: () => Promise.resolve(mockMetrics),
-      })
+      } as Response)
 
       const result = await fetchMetricHistory('cpu')
 
@@ -87,8 +89,9 @@ describe('API Client', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: () => Promise.resolve(mockMetrics),
-      })
+      } as Response)
 
       const result = await fetchMetricHistory('memory', 5)
 
@@ -100,7 +103,7 @@ describe('API Client', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
-      })
+      } as Response)
 
       await expect(fetchMetricHistory('nonexistent')).rejects.toThrow(
         'Failed to fetch metric history: 404'
