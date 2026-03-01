@@ -49,11 +49,19 @@ This repo includes a **working full-stack app** (FastAPI backend + React/TypeScr
 
 The best way to learn how the pipelines work is to **run them against this project**. Open the repo in VS Code, switch Copilot Chat to Agent mode, and try these prompts:
 
-### Feature Prompts (`/plan_to_build`)
+### Feature Prompts (`/plan_to_build` → `/build`)
+
+`/plan_to_build` produces a spec file in `specs/` — it plans the work but doesn't write any code. To execute the plan, run `/build` and point it at the spec:
 
 ```
 /plan_to_build "add a sparkline chart to MetricCard showing the last 10 values"
 ```
+Then:
+```
+/build specs/<the-generated-spec>.md
+```
+
+More prompts to try:
 ```
 /plan_to_build "add a metric history endpoint GET /metrics/{name}/history with pagination"
 ```
@@ -78,7 +86,7 @@ The best way to learn how the pipelines work is to **run them against this proje
 
 ### What to Watch For
 
-- **`/plan_to_build`** creates a spec in `specs/`, then say `execute the plan` to watch builder + validator agents take turns implementing each task with TDD
+- **`/plan_to_build`** creates a spec in `specs/` — then run **`/build specs/<filename>.md`** to execute it. Builder + validator agents take turns implementing each task with TDD
 - **`/bug_to_pr`** runs the full 6-phase lifecycle — triage, plan, build, PR, adversarial review, merge — all from a single prompt
 - **Hooks fire automatically** — every file write triggers lint/typecheck validation in real time
 - **Crash recovery works** — if a pipeline stops mid-run, say `resume` and it picks up from the last checkpoint
