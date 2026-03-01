@@ -154,6 +154,40 @@ It reads the last checkpoint and picks up where it left off.
 
 ---
 
+### Why `/bug_to_pr` (Local) vs. Async PR Flow (Cloud)
+
+Tests 2–3 use GitHub's **async coding agent** — you open an issue, assign @copilot, and wait for a PR. Test 4 uses the **local `/bug_to_pr` pipeline** — you describe a bug in VS Code and it runs the full lifecycle in front of you. These are fundamentally different architectures.
+
+| Dimension | Async PR Flow (Tests 2–3) | `/bug_to_pr` Pipeline (Test 4) |
+|-----------|--------------------------|-------------------------------|
+| **Where it runs** | GitHub Actions (cloud) | VS Code (local) |
+| **Feedback loop** | Minutes — wait for PR, approve CI, wait for result | Seconds — watch agents execute in real time |
+| **Failure recovery** | Manual: comment `@copilot fix` or checkout branch locally | Automatic: 2 fix cycles per task, rollback on exhaustion, checkpoint resume |
+| **Validation** | CI runs *after* PR is created (post-hoc) | Validator runs *after every task* (continuous) |
+| **Code review** | You review the PR manually | Two adversarial AI reviewers + you confirm merge |
+| **Error handling** | Copilot leaves a comment but does NOT auto-retry | Pipeline re-enters fix phase with rejection feedback (up to 2 cycles) |
+| **Human gates** | "Approve and run workflows" button (GitHub security policy) | `ask_questions` before merge — you see everything first |
+| **Agent count** | 1 (monolithic Copilot session) | 7 specialized agents, each with a defined scope |
+| **TDD enforcement** | Best-effort (no structural guarantee) | Mandatory: builder preamble enforces RED → GREEN → REFACTOR |
+| **Guardrails** | CI checks (lint, test, typecheck) run once at the end | `postToolUse` hook runs on *every file write* — problems caught immediately |
+| **Crash resilience** | Starts over from scratch | `pipeline-state.json` checkpoints — resume from last phase |
+| **Observability** | Read the PR diff after the fact | Watch each phase unfold, checkpoint reports every 3 tasks |
+
+**The structural gap**: The async flow is essentially "fire and forget with a CI gate." If CI fails, you're back to manually intervening. The local pipeline is a **closed-loop system** — every task is validated before the next one starts, failures trigger automatic fix cycles, and the whole thing checkpoints for crash recovery.
+
+```
+Async flow:    Issue → [black box] → PR → CI → pass/fail → manual intervention
+                                                    └── no automatic retry
+
+bug_to_pr:     Bug → triage → plan → [build → validate] × N → PR → [review × 2] → merge
+                                           └── fix cycle ──┘         └── re-fix cycle ──┘
+                                           └── rollback if stuck     └── stops after 2
+```
+
+The async flow is useful for low-stakes issues where you don't need tight control. The `/bug_to_pr` pipeline is for when you want **engineering discipline automated end-to-end** — TDD, adversarial review, crash recovery, and human-in-the-loop merge gates, all in a single invocation.
+
+---
+
 ## Agent Infrastructure Summary
 
 This project implements a full Copilot-native multi-agent orchestration system — ported and adapted from Claude Code slash commands. **[Full Architecture Guide with Mermaid diagrams →](.github/PIPELINES.md)**
