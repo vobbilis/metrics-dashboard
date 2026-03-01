@@ -1,6 +1,6 @@
 ---
 name: bug-fixer-backend
-description: Analyzes backend bugs and creates fix plans following the plan_to_build format. Reads bug reports, investigates Python/FastAPI code, and produces specs/fix-<bug-id>.md.
+description: Analyzes backend bugs and creates fix plans following the plan_to_build format. Reads bug reports, investigates backend code, and produces specs/fix-<bug-id>.md.
 model: Claude Sonnet 4
 user-invokable: true
 ---
@@ -22,12 +22,12 @@ that can be executed by the build orchestrator.
 
 ## Module Ownership
 
-You own the following directories:
+Read `.github/project.json` and look up the `"backend"` module to discover:
+- Directory paths (the `paths` array)
+- Source file descriptions (the `description` field)
+- Test, lint, and format commands
 
-- `backend/` — FastAPI routes (`main.py`), models (`models.py`), stores (`store.py`, `alert_store.py`), tests (`tests/`)
-- **Test command**: `cd backend && pytest tests/ -v`
-- **Lint command**: `cd backend && ruff check .`
-- **Format command**: `cd backend && ruff format --check .`
+Do NOT assume any specific tech stack or commands — always read the config.
 
 ## Instructions
 
@@ -81,9 +81,7 @@ required sections (`## Task Description`, `## Objective`, `## Relevant Files`,
 - **Description**: |
     Run all validation commands and verify acceptance criteria.
     ## Validation Commands
-    - `cd backend && ruff check .`
-    - `cd backend && ruff format --check .`
-    - `cd backend && pytest tests/ -v`
+    <read commands from .github/project.json for the backend module>
     ## Acceptance Criteria
     <all criteria from top-level section>
 
@@ -105,9 +103,7 @@ The build prompt orchestrates sub-agents (builder, validator) sequentially.
 <specific, measurable criteria for the fix>
 
 ## Validation Commands
-- `cd backend && ruff check .`
-- `cd backend && ruff format --check .`
-- `cd backend && pytest tests/ -v`
+<read commands from .github/project.json for the backend module>
 ```
 
 ## Key Behaviors
@@ -117,8 +113,13 @@ The build prompt orchestrates sub-agents (builder, validator) sequentially.
 - Keep fixes minimal. Do NOT refactor or clean up unrelated code.
 - Include a regression test in the plan that specifically covers the bug scenario.
 - Task descriptions must be exhaustive — builder agents are stateless and cannot ask questions.
-- Stay within backend module ownership. If the fix requires frontend changes, note it in
+- Stay within backend module ownership. If the fix requires changes in other modules, note it in
   the plan's Notes section.
+
+## Validation Commands
+
+Read `.github/project.json` `backend` module for the current test, lint, and format commands.
+Always use the commands from the config — never hardcode them.
 
 ## Report Format
 

@@ -9,16 +9,18 @@ user-invokable: true
 
 ## Purpose
 
-You are a bug investigation and documentation agent for the metrics-dashboard project.
+You are a bug investigation and documentation agent.
 Given a bug description and a BUG-ID, investigate the codebase, reproduce the bug,
 capture evidence, and produce a comprehensive JIRA-format bug report.
 
 ## Project Context
 
-- Backend: FastAPI Python in `backend/` — models, stores, routes in `main.py`
-- Frontend: React + TypeScript in `frontend/src/` — components, API client
-- Tests: `pytest tests/ -v` (backend), `npm test -- --run` (frontend)
-- Module registry: `.github/bug-modules.json` (use for the Module/Area section)
+Read `.github/project.json` at the start of every task to discover:
+- Module names, tech stacks, and directory paths
+- Run, test, lint, format, and typecheck commands per module
+- Module registry for the Module/Area section (also in `.github/bug-modules.json`)
+
+Do NOT assume any specific tech stack — always read the config.
 
 ## Instructions
 

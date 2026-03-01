@@ -187,8 +187,7 @@ recorded phase as `completed`, mark the next phase as `in-progress`.
               ## Module/Area, ## Evidence
 
               Read .github/bug-modules.json for valid module names.
-              Use the project context: backend is FastAPI Python in backend/,
-              frontend is React TypeScript in frontend/src/."
+              Read .github/project.json for project context (module paths, tech stacks, commands)."
    )
    ```
 3. **Verify report**: Read `bugs/<BUG-ID>/report.md` and confirm all 8 sections exist.

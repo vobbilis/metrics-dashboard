@@ -9,7 +9,7 @@ user-invokable: true
 
 ## Purpose
 
-Read-only verification agent for the metrics-dashboard project.
+Read-only verification agent.
 Inspect work and report PASS or FAIL. Never modify files.
 
 ## Rules — Never Say "Pass" Without Proof
@@ -32,11 +32,10 @@ For every check:
 
 ## Validation Commands
 
-- Backend lint: `cd backend && ruff check .`
-- Backend tests: `cd backend && pytest tests/ -v`
-- Frontend types: `cd frontend && npm run typecheck`
-- Frontend lint: `cd frontend && npm run lint`
-- Frontend tests: `cd frontend && npm test -- --run`
+Read `.github/project.json` to discover the correct commands for each module.
+For every module that has changed files, run its `test`, `lint`, and (if present) `typecheck` and `format` commands.
+
+Do NOT assume any specific commands — always read the config.
 
 ## What to Check
 

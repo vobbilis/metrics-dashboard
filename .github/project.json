@@ -1,0 +1,48 @@
+{
+    "name": "metrics-dashboard",
+    "description": "Full-stack metrics dashboard — FastAPI backend + React/TypeScript frontend",
+    "modules": {
+        "backend": {
+            "tech": "Python / FastAPI",
+            "paths": ["backend/"],
+            "description": "FastAPI routes (main.py), models (models.py), stores (store.py, alert_store.py), tests (tests/)",
+            "run": "cd backend && uvicorn main:app --reload",
+            "test": "cd backend && pytest tests/ -v",
+            "lint": "cd backend && ruff check .",
+            "format": "cd backend && ruff format --check .",
+            "fixer_agent": "bug-fixer-backend"
+        },
+        "frontend": {
+            "tech": "TypeScript / React",
+            "paths": ["frontend/src/"],
+            "description": "React components (components/), API client (api.ts), app entry (App.tsx, main.tsx), tests",
+            "run": "cd frontend && npm run dev",
+            "test": "cd frontend && npm test -- --run",
+            "lint": "cd frontend && npm run lint",
+            "typecheck": "cd frontend && npm run typecheck",
+            "fixer_agent": "bug-fixer-frontend"
+        },
+        "java": {
+            "tech": "Java / Spring Boot",
+            "paths": ["java-service/src/"],
+            "description": "Spring Boot microservice — controllers, services, repositories, tests",
+            "run": "cd java-service && ./mvnw spring-boot:run",
+            "test": "cd java-service && ./mvnw test",
+            "lint": "cd java-service && ./mvnw checkstyle:check",
+            "format": "cd java-service && ./mvnw spotless:check",
+            "fixer_agent": "bug-fixer-java"
+        },
+        "go": {
+            "tech": "Go",
+            "paths": ["go-service/"],
+            "description": "Go service — handlers, middleware, models, tests",
+            "run": "cd go-service && go run ./cmd/server",
+            "test": "cd go-service && go test ./...",
+            "lint": "cd go-service && golangci-lint run",
+            "format": "cd go-service && gofmt -l .",
+            "fixer_agent": "bug-fixer-go"
+        }
+    },
+    "default_fixer": "bug-fixer-backend",
+    "validation_commands_note": "Agents and hooks read this file to discover module paths, commands, and tech stack. Edit this file to adapt pipelines to your project."
+}

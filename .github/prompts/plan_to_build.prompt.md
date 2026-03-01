@@ -120,11 +120,9 @@ One-line task descriptions are FORBIDDEN. Every task's Description field must be
 
 ```
 ❌ FORBIDDEN: "Add validation to the metrics endpoint"
-✅ REQUIRED: "Add Pydantic validation to the POST /metrics endpoint in backend/main.py.
-   Create a MetricCreate model in backend/models.py with fields: name (str, required),
-   value (float, required), tags (dict[str,str], optional, default_factory=dict).
-   Follow the existing MetricOut model pattern. The route should return 422 for
-   invalid input. Verify with: cd backend && pytest tests/test_api.py -v -k test_create"
+✅ REQUIRED: A ≥50 word description that specifies what to do, which files to modify,
+   what code patterns to follow, acceptance criteria, and the exact validation command.
+   Read `.github/project.json` for the correct module paths and commands.
 ```
 
 ### Design Assertions — Prevent Shortcuts
@@ -152,8 +150,8 @@ The orchestrator dispatches a task-level validator after every builder task, but
 
 **What intermediate validators should check**:
 - All tests pass (not just the current task's test)
-- Lint is clean (`ruff check .`, `npm run lint`)
-- Types compile (`npm run typecheck`)
+- Lint is clean (run each module's lint command from `.github/project.json`)
+- Types compile (run each module's typecheck command from `.github/project.json`, if present)
 - No regressions in existing functionality
 
 **Where to place them**: After each Implementation Phase (Phase 1 → intermediate validate → Phase 2 → intermediate validate → … → final `validate-all`).
@@ -351,11 +349,7 @@ Use these files to complete the task:
     Intermediate validation after Phase 1 to catch regressions early.
 
     ## Validation Commands
-    <commands that verify all Phase 1 work + no regressions in existing code>
-    - Run full backend test suite: `cd backend && pytest tests/ -v`
-    - Run Python lint: `cd backend && ruff check .`
-    - Run frontend typecheck: `cd frontend && npm run typecheck`
-    - Run frontend lint: `cd frontend && npm run lint`
+    <read commands from .github/project.json for all affected modules>
 
     ## Acceptance Criteria
     <list acceptance criteria for Phase 1 tasks only>

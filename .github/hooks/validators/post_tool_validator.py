@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-PostToolUse validator for metrics-dashboard — Copilot format.
+PostToolUse validator — Copilot format.
+
+Reads .github/project.json to determine which lint/typecheck commands
+to run for each file type. No project-specific commands are hardcoded.
 
 Input schema (Copilot):
   {
@@ -122,6 +125,43 @@ def allow() -> None:
     print(json.dumps({"continue": True}))
 
 
+def load_project_config(cwd: Path) -> dict | None:
+    """Load .github/project.json if it exists."""
+    cfg_path = cwd / ".github" / "project.json"
+    if not cfg_path.exists():
+        return None
+    try:
+        return json.loads(cfg_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def find_module_for_file(changed_file: str, project_cfg: dict) -> str | None:
+    """Find which module owns the changed file based on path prefixes."""
+    for mod_name, mod_cfg in project_cfg.get("modules", {}).items():
+        for path_prefix in mod_cfg.get("paths", []):
+            if changed_file.startswith(path_prefix) or changed_file.startswith(f"./{path_prefix}"):
+                return mod_name
+    return None
+
+
+def parse_command(cmd_str: str, cwd: Path) -> tuple[list[str], Path]:
+    """Parse a command string like 'cd backend && ruff check .' into (cmd_list, working_dir).
+
+    Handles patterns:
+      - "cd <dir> && <command>"  → runs <command> in cwd/<dir>
+      - "<command>"              → runs <command> in cwd
+    """
+    if "&&" in cmd_str:
+        parts = cmd_str.split("&&", 1)
+        cd_part = parts[0].strip()
+        cmd_part = parts[1].strip()
+        if cd_part.startswith("cd "):
+            subdir = cd_part[3:].strip()
+            return cmd_part.split(), cwd / subdir
+    return cmd_str.split(), cwd
+
+
 def main() -> None:
     data = read_input()
     cwd = Path(data.get("cwd", os.getcwd()))
@@ -135,33 +175,43 @@ def main() -> None:
 
     changed_file = get_changed_file(tool_args)
 
-    # ── Python file changed → ruff lint ──────────────────────────────────────
-    if changed_file and changed_file.endswith(".py"):
-        backend_dir = cwd / "backend"
-        if backend_dir.exists():
-            ok, out = run(["ruff", "check", changed_file], backend_dir)
-            if not ok:
-                block(
-                    reason="Python lint failed (ruff)",
-                    context=(
-                        f"🛑 ruff check failed on {changed_file}:\n\n{out}\n\n"
-                        "Fix the lint errors before continuing."
-                    )
-                )
+    # ── Load project config for dynamic lint/typecheck commands ──────────────
+    project_cfg = load_project_config(cwd)
 
-    # ── TypeScript / TSX file changed → tsc --noEmit ─────────────────────────
-    elif changed_file and (changed_file.endswith(".ts") or changed_file.endswith(".tsx")):
-        frontend_dir = cwd / "frontend"
-        if frontend_dir.exists():
-            ok, out = run(["npm", "run", "typecheck"], frontend_dir)
-            if not ok:
-                block(
-                    reason="TypeScript typecheck failed",
-                    context=(
-                        f"🛑 tsc --noEmit failed after editing {changed_file}:\n\n{out}\n\n"
-                        "Fix the type errors before continuing."
+    # ── Source file changed → run module's lint/typecheck commands ────────────
+    if changed_file and project_cfg:
+        module = find_module_for_file(changed_file, project_cfg)
+        if module:
+            mod_cfg = project_cfg["modules"][module]
+            mod_dir = cwd / mod_cfg["paths"][0]
+
+            # Run lint command if defined
+            if "lint" in mod_cfg and mod_dir.exists():
+                lint_cmd, lint_cwd = parse_command(mod_cfg["lint"], cwd)
+                ok, out = run(lint_cmd, lint_cwd)
+                if not ok:
+                    block(
+                        reason=f"Lint failed ({module} module)",
+                        context=(
+                            f"🛑 Lint failed on {changed_file}:\n\n{out}\n\n"
+                            f"Command: {mod_cfg['lint']}\n"
+                            "Fix the lint errors before continuing."
+                        )
                     )
-                )
+
+            # Run typecheck command if defined
+            if "typecheck" in mod_cfg and mod_dir.exists():
+                tc_cmd, tc_cwd = parse_command(mod_cfg["typecheck"], cwd)
+                ok, out = run(tc_cmd, tc_cwd)
+                if not ok:
+                    block(
+                        reason=f"Typecheck failed ({module} module)",
+                        context=(
+                            f"🛑 Typecheck failed after editing {changed_file}:\n\n{out}\n\n"
+                            f"Command: {mod_cfg['typecheck']}\n"
+                            "Fix the type errors before continuing."
+                        )
+                    )
 
     # ── Spec file written to specs/ → validate required sections ─────────────
     if changed_file and re.search(r"(^|/)specs/.*\.md$", changed_file):
