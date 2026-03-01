@@ -1,6 +1,14 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "bash .github/hooks/setup.sh",
+        "powershell": "powershell -File .github\\hooks\\setup.ps1",
+        "timeoutSec": 120
+      }
+    ],
     "postToolUse": [
       {
         "type": "command",

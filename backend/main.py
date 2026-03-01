@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import MetricIn, MetricOut
+from models import MetricIn, MetricOut, MetricSummary
 from store import MetricStore
 
 app = FastAPI(title="Metrics Dashboard API", version="0.1.0")
@@ -29,6 +29,12 @@ def submit_metric(metric: MetricIn) -> MetricOut:
 @app.get("/metrics", response_model=list[MetricOut])
 def list_metrics() -> list[MetricOut]:
     return store.all()
+
+
+@app.get("/metrics/summary", response_model=MetricSummary)
+def metrics_summary() -> MetricSummary:
+    data = store.summary()
+    return MetricSummary(**data)
 
 
 @app.get("/metrics/{name}", response_model=list[MetricOut])

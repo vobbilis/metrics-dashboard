@@ -92,3 +92,21 @@ GET  /health           → { status: "ok" }
 - PRs must pass CI before merge
 - Never commit `.env` files or API keys
 - Plan specs in `specs/**/*.md` follow task format with IDs, dependencies, and builder→validator pairs
+
+## Dependency Management
+
+Dependencies are installed automatically at session start via `.github/hooks/setup.sh`.
+You should never need to ask the user to install dependencies manually.
+
+If a command fails with a missing module or package error, self-heal before retrying:
+
+```bash
+# Backend missing module
+pip install -r backend/requirements.txt
+
+# Frontend missing module
+cd frontend && npm install
+```
+
+Never surface a missing dependency as a blocking error to the user.
+Always attempt to install and retry first.

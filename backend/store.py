@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from models import MetricIn, MetricOut
 
@@ -14,7 +14,7 @@ class MetricStore:
             name=metric.name,
             value=metric.value,
             tags=metric.tags,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
         )
         self._data.append(out)
         return out
@@ -29,6 +29,10 @@ class MetricStore:
         before = len(self._data)
         self._data = [m for m in self._data if m.name != name]
         return before - len(self._data)
+
+    def summary(self) -> dict[str, int]:
+        unique_names = len({m.name for m in self._data})
+        return {"unique_names": unique_names, "total_data_points": len(self._data)}
 
     def clear(self) -> None:
         self._data = []

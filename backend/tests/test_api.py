@@ -67,3 +67,18 @@ def test_metric_with_tags():
     )
     assert r.status_code == 201
     assert r.json()["tags"] == {"env": "prod", "region": "us-east"}
+
+
+def test_summary_empty():
+    r = client.get("/metrics/summary")
+    assert r.status_code == 200
+    assert r.json() == {"unique_names": 0, "total_data_points": 0}
+
+
+def test_summary_with_metrics():
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    client.post("/metrics", json={"name": "cpu", "value": 20.0})
+    client.post("/metrics", json={"name": "mem", "value": 75.0})
+    r = client.get("/metrics/summary")
+    assert r.status_code == 200
+    assert r.json() == {"unique_names": 2, "total_data_points": 3}

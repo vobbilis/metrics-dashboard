@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -14,4 +14,9 @@ class MetricOut(BaseModel):
     name: str
     value: float
     tags: dict[str, str]
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class MetricSummary(BaseModel):
+    unique_names: int
+    total_data_points: int
