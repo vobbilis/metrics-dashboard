@@ -1,12 +1,21 @@
 const BASE = '/api'
 
+export type AlertOperator = 'gt' | 'lt' | 'eq'
+export type AlertState = 'ok' | 'firing'
+
 export interface AlertRule {
   id: string
   metric_name: string
-  operator: 'gt' | 'lt' | 'eq'
+  operator: AlertOperator
   threshold: number
-  state: 'ok' | 'firing'
+  state: AlertState
   created_at: string
+}
+
+export interface AlertRuleIn {
+  metric_name: string
+  operator: AlertOperator
+  threshold: number
 }
 
 export interface Metric {
@@ -57,5 +66,22 @@ export async function fetchMetricHistory(
 ): Promise<Metric[]> {
   const res = await fetch(`${BASE}/metrics/${name}/history?limit=${limit}`)
   if (!res.ok) throw new Error(`Failed to fetch metric history: ${res.status}`)
+  return res.json()
+}
+
+export async function createAlert(rule: AlertRuleIn): Promise<AlertRule> {
+  const res = await fetch(`${BASE}/alerts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rule),
+  })
+  if (!res.ok || res.status !== 201)
+    throw new Error(`Failed to create alert: ${res.status}`)
+  return res.json()
+}
+
+export async function deleteAlert(ruleId: string): Promise<{ deleted: number }> {
+  const res = await fetch(`${BASE}/alerts/${ruleId}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Failed to delete alert: ${res.status}`)
   return res.json()
 }

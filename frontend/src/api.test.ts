@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fetchAlerts, fetchMetricHistory } from './api'
+import {
+  fetchMetricHistory,
+  fetchAlerts,
+  createAlert,
+  deleteAlert,
+  type AlertRuleIn,
+  type AlertRule,
+} from './api'
 
 // Mock fetch globally
 const mockFetch = vi.fn<typeof fetch>()
@@ -108,6 +115,95 @@ describe('API Client', () => {
       await expect(fetchMetricHistory('nonexistent')).rejects.toThrow(
         'Failed to fetch metric history: 404'
       )
+    })
+  })
+
+  describe('createAlert', () => {
+    it('should create an alert', async () => {
+      const alertIn: AlertRuleIn = {
+        metric_name: 'cpu',
+        operator: 'gt',
+        threshold: 80,
+      }
+
+      const alertOut: AlertRule = {
+        id: 'alert-1',
+        metric_name: 'cpu',
+        operator: 'gt',
+        threshold: 80,
+        state: 'ok',
+        created_at: '2026-02-28T10:00:00Z',
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(alertOut),
+      } as Response)
+
+      const result = await createAlert(alertIn)
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(alertIn),
+      })
+      expect(result).toEqual(alertOut)
+    })
+
+    it('should throw error when status is not 201', async () => {
+      const alertIn: AlertRuleIn = {
+        metric_name: 'cpu',
+        operator: 'gt',
+        threshold: 80,
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response)
+
+      await expect(createAlert(alertIn)).rejects.toThrow('Failed to create alert: 200')
+    })
+
+    it('should throw error when response is not ok', async () => {
+      const alertIn: AlertRuleIn = {
+        metric_name: 'cpu',
+        operator: 'gt',
+        threshold: 80,
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+      } as Response)
+
+      await expect(createAlert(alertIn)).rejects.toThrow('Failed to create alert: 400')
+    })
+  })
+
+  describe('deleteAlert', () => {
+    it('should delete an alert', async () => {
+      const deleteResult = { deleted: 1 }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(deleteResult),
+      } as Response)
+
+      const result = await deleteAlert('alert-1')
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/alerts/alert-1', { method: 'DELETE' })
+      expect(result).toEqual(deleteResult)
+    })
+
+    it('should throw error when response is not ok', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      } as Response)
+
+      await expect(deleteAlert('alert-1')).rejects.toThrow('Failed to delete alert: 500')
     })
   })
 })

@@ -8,9 +8,9 @@ const POLL_INTERVAL_MS = 5000
 
 export default function App() {
   const [metrics, setMetrics] = useState<Metric[]>([])
+  const [alerts, setAlerts] = useState<AlertRule[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [alerts, setAlerts] = useState<AlertRule[]>([])
 
   const loadMetrics = async () => {
     try {
@@ -28,20 +28,18 @@ export default function App() {
     try {
       const data = await fetchAlerts()
       setAlerts(data)
-    } catch {
-      // silently ignore alert fetch errors
+    } catch (e) {
+      // Alert errors should NOT break metrics polling - handle independently
+      console.error('Failed to load alerts:', e)
     }
   }
 
   useEffect(() => {
-    loadMetrics()
-    const timer = setInterval(loadMetrics, POLL_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    loadAlerts()
-    const timer = setInterval(loadAlerts, POLL_INTERVAL_MS)
+    const loadData = async () => {
+      await Promise.all([loadMetrics(), loadAlerts()])
+    }
+    loadData()
+    const timer = setInterval(loadData, POLL_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [])
 
@@ -69,27 +67,27 @@ export default function App() {
         ))}
       </div>
 
-      {alerts.length > 0 && (
-        <section className="alerts-panel">
-          <h2>Alert Rules</h2>
-          <ul className="alerts-list">
-            {alerts.map((a) => (
-              <li
-                key={a.id}
-                className={`alert-rule alert-rule--${a.state}`}
-              >
-                <span className="alert-name">{a.metric_name}</span>
-                <span className="alert-condition">
-                  {a.operator} {a.threshold}
-                </span>
-                <span className={`alert-state alert-state--${a.state}`}>
-                  {a.state}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <div className="alert-list">
+        <h2>Alerts</h2>
+        {alerts.length === 0 ? (
+          <p>No alerts configured.</p>
+        ) : (
+          alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className={`alert-item ${alert.state === 'firing' ? 'alert-state-firing' : ''}`}
+            >
+              {alert.metric_name}{' '}
+              {alert.operator === 'gt'
+                ? '>'
+                : alert.operator === 'lt'
+                  ? '<'
+                  : '='}{' '}
+              {alert.threshold} ({alert.state})
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }
