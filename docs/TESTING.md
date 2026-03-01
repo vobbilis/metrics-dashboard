@@ -1,0 +1,163 @@
+# Testing the Aigile Agent Pipelines
+
+Step-by-step tests to verify each pipeline and agent workflow.
+
+---
+
+## Prerequisites
+
+**GitHub repo settings** (Settings → Copilot):
+- ✅ Enable Copilot coding agent for this repo
+- ✅ Allow Copilot to create and approve pull requests
+
+**GitHub Actions settings** (Settings → Actions → General):
+- ✅ Allow GitHub Actions to create and approve pull requests
+
+**VS Code settings** (`.vscode/settings.json` — already configured):
+- `chat.agent.enabled: true`
+- `chat.hooks.enabled: true`
+- `chat.useAgentSkills: true`
+- `chat.customAgentInSubagent.enabled: true`
+
+---
+
+## Test 1: VS Code Copilot (interactive, local)
+
+1. Open this repo in VS Code
+2. Open Copilot Chat → switch to **Agent mode** (not Chat mode)
+3. Type `/plan_to_build` — verify it appears as a command
+4. Run: `/plan_to_build "add a sparkline chart component to MetricCard showing last 10 values"`
+5. Verify a `specs/` file is created
+6. Tell Copilot: `execute the plan in specs/<filename>.md`
+7. Verify builder + validator subagents run sequentially
+8. Verify hooks fire — check post_tool_validator.py runs on file writes
+
+**What to observe:**
+- Subagents are sequential (builder → validator → builder → validator)
+- No peer messaging between subagents
+- Hooks run silently after each file write
+
+---
+
+## Test 2: GitHub Copilot Coding Agent (async, cloud)
+
+1. Push this repo to GitHub
+2. Verify `.github/workflows/copilot-setup-steps.yml` passes in Actions
+3. Open a new GitHub Issue:
+   ```
+   Title: Add metric history endpoint
+   Body: Add GET /metrics/{name}/history that returns the last N values
+         for a metric. Default N=10, configurable via query param.
+         Include tests.
+   ```
+4. Assign the issue to **Copilot** (right sidebar → Assignees → @copilot)
+5. Wait 2–5 minutes → a PR should appear
+
+**What to observe:**
+- Copilot spins up in GitHub Actions (watch the Actions tab)
+- Copilot opens a draft PR
+- You see **"Approve and run workflows"** button — this is the mandatory human CI gate
+- Click it to approve CI
+- CI runs backend tests + frontend typecheck
+- If CI passes → review and merge
+
+**The seam to notice:**
+When you click "Approve and run workflows" you are manually bridging
+the seam between the async cloud agent and the CI system.
+This cannot be automated — it is a GitHub security policy.
+
+---
+
+## Test 3: Failure Recovery (the interesting one)
+
+1. Open an issue that will intentionally cause a CI failure:
+   ```
+   Title: Add metric aggregation endpoint
+   Body: Add GET /metrics/aggregate that returns min/max/avg per metric name.
+         The response shape must be: { name: str, min: float, max: float, avg: float }
+         Tests must cover empty state, single value, and multiple values.
+   ```
+2. Assign to @copilot
+3. When the PR appears, **do not** approve CI immediately
+4. Read the PR diff — note what Copilot produced
+5. Approve CI — watch if it passes or fails
+6. **If CI fails:** notice that Copilot leaves a comment but does NOT automatically
+   re-trigger. You must either:
+   - Comment `@copilot fix the failing tests` to start a new cloud session
+   - OR check out the branch locally and run Claude Code to fix:
+     ```bash
+     git checkout copilot/issue-N
+     # in VS Code: tell Copilot/Claude Code to fix the CI failure
+     ```
+
+This is the cross-platform seam in action.
+
+---
+
+## Test 4: Bug-to-PR Pipeline (the star of the show)
+
+The `/bug_to_pr` pipeline takes a plain-English bug description and fully automates the fix lifecycle — from investigation to merged PR — orchestrating 7 agents across 6 phases.
+
+1. Open this repo in VS Code, Copilot Chat in **Agent mode**
+2. Run:
+   ```
+   /bug_to_pr "the alerts panel polling interval conflicts with the metrics polling interval, causing UI flicker"
+   ```
+3. Watch the pipeline unfold:
+
+| Phase         | What Happens                                                                | Agent(s)                              |
+| ------------- | --------------------------------------------------------------------------- | ------------------------------------- |
+| **0. Setup**  | Creates `bugs/BUG-XXX/`, branch `fix/bug-xxx`, initializes state checkpoint | —                                     |
+| **1. Triage** | Investigates bug, writes JIRA-format report, classifies module              | `bug-creator`, `bug-router`           |
+| **2. Fix**    | Creates fix plan, executes with TDD (builder+validator per task)            | `bug-fixer-*`, `builder`, `validator` |
+| **3. PR**     | Commits, pushes, creates GitHub PR, posts bug report as comment             | —                                     |
+| **4. Review** | Two independent adversarial reviewers (5-point checklist each)              | `bug-reviewer` × 2                    |
+| **5. Merge**  | If both approve → asks you to confirm → merges PR                           | —                                     |
+
+**What to observe:**
+- **Nested orchestration**: Phase 2 runs `plan_to_build` + `build` *inside* the bug pipeline
+- **Review isolation**: Reviewer files are written only after BOTH complete — neither sees the other's verdict
+- **Crash recovery**: `bugs/BUG-XXX/pipeline-state.json` checkpoints after each phase — say "resume" to continue
+- **Artifacts on PR**: Bug report posted as comment, review verdicts posted as PR reviews
+- **Fix-review cycles**: If a reviewer rejects, the pipeline re-enters the fix phase with feedback (max 2 cycles)
+- **User stays in control**: The pipeline asks before merging — you can inspect everything first
+
+**Tip:** If the pipeline crashes mid-run (terminal timeout, context limit), just tell Copilot:
+```
+resume the bug_to_pr pipeline
+```
+It reads the last checkpoint and picks up where it left off.
+
+---
+
+## Local vs. Cloud: Why Both Matter
+
+Tests 2–3 use GitHub's **async coding agent** — you open an issue, assign @copilot, and wait for a PR. Test 4 uses the **local `/bug_to_pr` pipeline** — you describe a bug in VS Code and it runs the full lifecycle in front of you. These are fundamentally different architectures.
+
+| Dimension            | Async PR Flow (Tests 2–3)                                   | `/bug_to_pr` Pipeline (Test 4)                                              |
+| -------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Where it runs**    | GitHub Actions (cloud)                                      | VS Code (local)                                                             |
+| **Feedback loop**    | Minutes — wait for PR, approve CI, wait for result          | Seconds — watch agents execute in real time                                 |
+| **Failure recovery** | Manual: comment `@copilot fix` or checkout branch locally   | Automatic: 2 fix cycles per task, rollback on exhaustion, checkpoint resume |
+| **Validation**       | CI runs *after* PR is created (post-hoc)                    | Validator runs *after every task* (continuous)                              |
+| **Code review**      | You review the PR manually                                  | Two adversarial AI reviewers + you confirm merge                            |
+| **Error handling**   | Copilot leaves a comment but does NOT auto-retry            | Pipeline re-enters fix phase with rejection feedback (up to 2 cycles)       |
+| **Human gates**      | "Approve and run workflows" button (GitHub security policy) | `ask_questions` before merge — you see everything first                     |
+| **Agent count**      | 1 (monolithic Copilot session)                              | 7 specialized agents, each with a defined scope                             |
+| **TDD enforcement**  | Best-effort (no structural guarantee)                       | Mandatory: builder preamble enforces RED → GREEN → REFACTOR                 |
+| **Guardrails**       | CI checks (lint, test, typecheck) run once at the end       | `postToolUse` hook runs on *every file write* — problems caught immediately |
+| **Crash resilience** | Starts over from scratch                                    | `pipeline-state.json` checkpoints — resume from last phase                  |
+| **Observability**    | Read the PR diff after the fact                             | Watch each phase unfold, checkpoint reports every 3 tasks                   |
+
+**The structural gap**: The async flow is essentially "fire and forget with a CI gate." If CI fails, you're back to manually intervening. The local pipeline is a **closed-loop system** — every task is validated before the next one starts, failures trigger automatic fix cycles, and the whole thing checkpoints for crash recovery.
+
+```
+Async flow:    Issue → [black box] → PR → CI → pass/fail → manual intervention
+                                                    └── no automatic retry
+
+bug_to_pr:     Bug → triage → plan → [build → validate] × N → PR → [review × 2] → merge
+                                           └── fix cycle ──┘         └── re-fix cycle ──┘
+                                           └── rollback if stuck     └── stops after 2
+```
+
+The async flow is useful for low-stakes issues where you don't need tight control. The `/bug_to_pr` pipeline is for when you want **engineering discipline automated end-to-end** — TDD, adversarial review, crash recovery, and human-in-the-loop merge gates, all in a single invocation.
