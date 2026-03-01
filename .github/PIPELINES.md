@@ -28,7 +28,7 @@ The system follows a **hub-and-spoke orchestration model**: the main Copilot cha
 
 ```mermaid
 graph TB
-    User((👤 User))
+    User((User))
 
     subgraph "Copilot Chat Agent (Orchestrator)"
         PTB["/plan_to_build"]
@@ -37,13 +37,13 @@ graph TB
     end
 
     subgraph "Sub-Agents (Stateless)"
-        B["🔨 builder"]
-        V["✅ validator"]
-        BC["🔍 bug-creator"]
-        BR["🧭 bug-router"]
-        BFB["🔧 bug-fixer-backend"]
-        BFF["🎨 bug-fixer-frontend"]
-        REV["⚖️ bug-reviewer"]
+        B["builder"]
+        V["validator"]
+        BC["bug-creator"]
+        BR["bug-router"]
+        BFB["bug-fixer-backend"]
+        BFF["bug-fixer-frontend"]
+        REV["bug-reviewer"]
     end
 
     subgraph "Guardrails"
@@ -122,7 +122,7 @@ This pipeline is **planning only** — it reads code, asks clarifying questions,
 
 ```mermaid
 flowchart LR
-    A["👤 User describes\nfeature/task"] --> B["Analyze\nRequirements"]
+    A["User describes\nfeature/task"] --> B["Analyze\nRequirements"]
     B --> C["Explore Codebase\n(read, grep, search)"]
     C --> D{"Brainstorm?\n(feature/enhancement)"}
     D -->|"Yes"| E["Ask user:\nWhich approach?"]
@@ -132,11 +132,11 @@ flowchart LR
     G -->|"Medium/Complex"| H["Ask user:\nHow many builders?"]
     G -->|"Simple"| I["Single builder"]
     H --> I
-    I --> J["Write tasks\n(≥50 words each)"]
+    I --> J["Write tasks\n(50+ words each)"]
     J --> K["Self-Audit\n(counts & rules)"]
     K --> L["Save to\nspecs/*.md"]
     L --> M["Verify\n(file exists + 7 sections)"]
-    M --> N["📄 Spec Ready"]
+    M --> N["Spec Ready"]
 
     style A fill:#4A90D9,color:#fff
     style N fill:#27AE60,color:#fff
@@ -199,21 +199,21 @@ This pipeline is the **execution engine**. It reads a plan, dispatches agents on
 
 ```mermaid
 flowchart TD
-    START["📄 Read spec from\nspecs/*.md"] --> PARSE["Parse tasks,\ndeps, team"]
+    START["Read spec from\nspecs/*.md"] --> PARSE["Parse tasks,\ndeps, team"]
     PARSE --> TODO["Create todo list"]
     TODO --> NEXT{"Next task?"}
 
     NEXT -->|"builder task"| DISPATCH_B["Dispatch builder\n(with TDD preamble)"]
     NEXT -->|"validator task\n(final)"| DISPATCH_V_FINAL["Dispatch validator\n(full acceptance criteria)"]
-    NEXT -->|"no more tasks"| REPORT["📊 Build Report"]
+    NEXT -->|"no more tasks"| REPORT["Build Report"]
 
     DISPATCH_B --> CHECK_B{"Builder status?"}
     CHECK_B -->|"COMPLETED"| DISPATCH_V["Dispatch validator\n(verify task)"]
     CHECK_B -->|"FAILED"| DISPATCH_V
 
     DISPATCH_V --> CHECK_V{"Validator status?"}
-    CHECK_V -->|"PASS ✅"| MARK_DONE["Mark task done"]
-    CHECK_V -->|"FAIL ❌"| FIX_CHECK{"Fix cycle ≤ 2?"}
+    CHECK_V -->|"PASS"| MARK_DONE["Mark task done"]
+    CHECK_V -->|"FAIL"| FIX_CHECK{"Fix cycle <= 2?"}
 
     FIX_CHECK -->|"Yes"| REFIX["Re-dispatch builder\nwith failure context"]
     FIX_CHECK -->|"No (exhausted)"| ROLLBACK["Rollback via\ngit checkout"]
@@ -255,16 +255,16 @@ sequenceDiagram
     O->>B: Task + TDD preamble
     B-->>O: Status: COMPLETED
     O->>V: Verify task
-    V-->>O: Status: FAIL ❌
+    V-->>O: Status: FAIL
 
     Note over O: Fix cycle 1 of 2
 
     O->>B: Fix context + failure details
     B-->>O: Status: COMPLETED
     O->>V: Re-verify
-    V-->>O: Status: PASS ✅
+    V-->>O: Status: PASS
 
-    Note over O: Task complete ✅
+    Note over O: Task complete
 ```
 
 If the validator still reports FAIL after 2 fix cycles:
@@ -277,7 +277,7 @@ sequenceDiagram
 
     Note over O: Fix cycle 2 FAILED
 
-    O->>B: ROLLBACK — git checkout files
+    O->>B: ROLLBACK - git checkout files
     B-->>O: Rolled back
 
     Note over O: Task marked "ROLLED BACK"<br/>Continue to next task
@@ -322,16 +322,16 @@ flowchart TD
     end
 
     subgraph "Phase 1: Triage"
-        T1["🔍 bug-creator\ninvestigates & writes report"]
-        T2["🧭 bug-router\nclassifies module"]
+        T1["bug-creator\ninvestigates and writes report"]
+        T2["bug-router\nclassifies module"]
         T3["Write routing.json"]
         T1 --> T2 --> T3
     end
 
     subgraph "Phase 2: Fix"
-        F1["🔧 bug-fixer-*\ncreates fix plan"]
-        F2["🔨 builder × N\nexecutes tasks (TDD)"]
-        F3["✅ validator × N\nverifies each task"]
+        F1["bug-fixer-*\ncreates fix plan"]
+        F2["builder x N\nexecutes tasks (TDD)"]
+        F3["validator x N\nverifies each task"]
         F4["Capture test evidence"]
         F1 --> F2
         F2 --> F3
@@ -347,8 +347,8 @@ flowchart TD
     end
 
     subgraph "Phase 4: Adversarial Review"
-        R1["⚖️ reviewer-alpha\n(independent)"]
-        R2["⚖️ reviewer-beta\n(independent)"]
+        R1["reviewer-alpha\n(independent)"]
+        R2["reviewer-beta\n(independent)"]
         R3["Write both reviews\n(only after BOTH complete)"]
         R4["Post verdicts\nto PR"]
         R1 --> R3
@@ -361,7 +361,7 @@ flowchart TD
         M2["Ask user:\nMerge PR?"]
         M3["gh pr merge\n--delete-branch"]
         M4["Report rejection\nreasons"]
-        M5{"Retry?\n(≤2 cycles)"}
+        M5{"Retry?\n(max 2 cycles)"}
         M1 -->|"Yes"| M2
         M2 -->|"Yes"| M3
         M2 -->|"No"| DONE
@@ -377,7 +377,7 @@ flowchart TD
     P3 --> R1
     P3 --> R2
     R4 --> M1
-    M3 --> DONE["📊 Pipeline Report"]
+    M3 --> DONE["Pipeline Report"]
 
     style S1 fill:#4A90D9,color:#fff
     style DONE fill:#27AE60,color:#fff
@@ -484,11 +484,11 @@ On resume, the orchestrator reads this file and skips completed phases. All file
 flowchart LR
     FIX1["Phase 2: Fix\n(cycle 1)"] --> PR1["Phase 3: PR"]
     PR1 --> REV1["Phase 4: Review"]
-    REV1 -->|"APPROVE + APPROVE"| MERGE["Phase 5: Merge ✅"]
+    REV1 -->|"APPROVE + APPROVE"| MERGE["Phase 5: Merge"]
     REV1 -->|"Any REJECT"| FIX2["Phase 2: Re-fix\n(cycle 2, with feedback)"]
     FIX2 --> REV2["Phase 4: Re-review"]
     REV2 -->|"APPROVE + APPROVE"| MERGE
-    REV2 -->|"Any REJECT"| STOP["Pipeline stops ❌\nAll reasons reported"]
+    REV2 -->|"Any REJECT"| STOP["Pipeline stops\nAll reasons reported"]
 
     style MERGE fill:#27AE60,color:#fff
     style STOP fill:#E74C3C,color:#fff
@@ -548,10 +548,10 @@ flowchart TD
     CHECK -->|".ts / .tsx"| TSC["tsc --noEmit\n(TypeScript typecheck)"]
     CHECK -->|"specs/*.md"| SPEC["Validate 7 required sections\n+ validator frequency"]
     CHECK -->|"bugs/*/report.md"| BUG["Validate 8 required sections"]
-    CHECK -->|"other"| ALLOW["✅ Allow"]
+    CHECK -->|"other"| ALLOW["Allow"]
 
     RUFF -->|"pass"| ALLOW
-    RUFF -->|"fail"| BLOCK["🛑 Block write\n+ inject error context"]
+    RUFF -->|"fail"| BLOCK["BLOCK write\n+ inject error context"]
     TSC -->|"pass"| ALLOW
     TSC -->|"fail"| BLOCK
     SPEC -->|"pass"| ALLOW
@@ -617,29 +617,29 @@ This means agents don't just "write code" — they follow the same engineering s
 
 ### Skill → Pipeline Mapping
 
-| Skill | Embedded In | Key Rules Extracted |
-|-------|------------|-------------------|
-| **brainstorming** | `plan_to_build` prompt — "Prerequisite: Explore Before Planning" section | One question at a time, multiple-choice preferred, skip table for trivial tasks |
-| **writing-plans** | `plan_to_build` prompt — "Task Quality Rules" section | ≥50 word descriptions, 2–5 min task size, design assertions, self-audit checklist |
-| **plan-reviewer** | `plan_to_build` prompt — Workflow step 8 "Self-Review" | Gap analysis: missing deps, risky areas, edge cases, rollback paths |
-| **test-driven-development** | `builder` agent + `build` prompt builder preamble | RED-GREEN-REFACTOR cycle, test-first is mandatory, skip table for config |
-| **terminal-discipline** | `builder` agent | No interrupting running commands, note long durations, read full output |
-| **systematic-debugging** | `builder` agent + `build` prompt fix cycle dispatch | 4-phase: reproduce → isolate → root cause → fix. No random changes. |
-| **verification-before-completion** | `validator` agent + `build` prompt report section | Never say PASS without actual output, paste real command results |
-| **safe-rollback** | `build` prompt — exhausted fix cycle handler | `git checkout` rollback when 2 fix cycles fail, verify with `git diff` |
-| **executing-plans** | `build` prompt — batch checkpoints | Pause every 3 tasks, report progress, give user a chance to course-correct |
-| **code-refactoring** | `plan_to_build` prompt — task splitting rules | "Too Big" test: >2 files or >20 lines = split it |
-| **requesting-code-review** | `bug_to_pr` prompt — Phase 4 adversarial review | Independent dual reviewers, 5-point checklist, structural isolation |
-| **finishing-a-development-branch** | `bug_to_pr` prompt — Phase 5 merge gate | User confirmation before merge, clean branch deletion |
+| Skill                              | Embedded In                                                              | Key Rules Extracted                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| **brainstorming**                  | `plan_to_build` prompt — "Prerequisite: Explore Before Planning" section | One question at a time, multiple-choice preferred, skip table for trivial tasks   |
+| **writing-plans**                  | `plan_to_build` prompt — "Task Quality Rules" section                    | ≥50 word descriptions, 2–5 min task size, design assertions, self-audit checklist |
+| **plan-reviewer**                  | `plan_to_build` prompt — Workflow step 8 "Self-Review"                   | Gap analysis: missing deps, risky areas, edge cases, rollback paths               |
+| **test-driven-development**        | `builder` agent + `build` prompt builder preamble                        | RED-GREEN-REFACTOR cycle, test-first is mandatory, skip table for config          |
+| **terminal-discipline**            | `builder` agent                                                          | No interrupting running commands, note long durations, read full output           |
+| **systematic-debugging**           | `builder` agent + `build` prompt fix cycle dispatch                      | 4-phase: reproduce → isolate → root cause → fix. No random changes.               |
+| **verification-before-completion** | `validator` agent + `build` prompt report section                        | Never say PASS without actual output, paste real command results                  |
+| **safe-rollback**                  | `build` prompt — exhausted fix cycle handler                             | `git checkout` rollback when 2 fix cycles fail, verify with `git diff`            |
+| **executing-plans**                | `build` prompt — batch checkpoints                                       | Pause every 3 tasks, report progress, give user a chance to course-correct        |
+| **code-refactoring**               | `plan_to_build` prompt — task splitting rules                            | "Too Big" test: >2 files or >20 lines = split it                                  |
+| **requesting-code-review**         | `bug_to_pr` prompt — Phase 4 adversarial review                          | Independent dual reviewers, 5-point checklist, structural isolation               |
+| **finishing-a-development-branch** | `bug_to_pr` prompt — Phase 5 merge gate                                  | User confirmation before merge, clean branch deletion                             |
 
 ### How This Works in Practice
 
 ```mermaid
 graph LR
     subgraph "Skills (Philosophy)"
-        S1["test-driven-development\nRED → GREEN → REFACTOR"]
-        S2["systematic-debugging\nreproduce → isolate → root cause → fix"]
-        S3["writing-plans\n≥50 words, design assertions"]
+        S1["test-driven-development\nRED - GREEN - REFACTOR"]
+        S2["systematic-debugging\nreproduce - isolate - root cause - fix"]
+        S3["writing-plans\n50+ words, design assertions"]
         S4["verification-before-completion\nproof, not promises"]
     end
 
