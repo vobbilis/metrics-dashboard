@@ -1,10 +1,35 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import MetricIn, MetricOut, MetricSummary
+from alert_store import AlertStore
+from models import AlertRuleIn, AlertRuleOut, MetricIn, MetricOut, MetricSummary
 from store import MetricStore
 
-app = FastAPI(title="Metrics Dashboard API", version="0.1.0")
+store = MetricStore()
+alert_store = AlertStore()
+
+
+async def _evaluate_loop() -> None:
+    while True:
+        await asyncio.sleep(10)
+        alert_store.evaluate(store)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    task = asyncio.create_task(_evaluate_loop())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(title="Metrics Dashboard API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,8 +37,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-store = MetricStore()
 
 
 @app.get("/health")
@@ -37,6 +60,14 @@ def metrics_summary() -> MetricSummary:
     return MetricSummary(**data)
 
 
+@app.get("/metrics/{name}/history", response_model=list[MetricOut])
+def get_metric_history(name: str, limit: int = 20) -> list[MetricOut]:
+    results = store.history(name, limit)
+    if not results:
+        raise HTTPException(status_code=404, detail=f"No history found for '{name}'")
+    return results
+
+
 @app.get("/metrics/{name}", response_model=list[MetricOut])
 def get_metric(name: str) -> list[MetricOut]:
     results = store.by_name(name)
@@ -48,4 +79,20 @@ def get_metric(name: str) -> list[MetricOut]:
 @app.delete("/metrics/{name}")
 def delete_metric(name: str) -> dict[str, int]:
     deleted = store.delete(name)
+    return {"deleted": deleted}
+
+
+@app.post("/alerts", response_model=AlertRuleOut, status_code=201)
+def create_alert(rule: AlertRuleIn) -> AlertRuleOut:
+    return alert_store.add_rule(rule)
+
+
+@app.get("/alerts", response_model=list[AlertRuleOut])
+def list_alerts() -> list[AlertRuleOut]:
+    return alert_store.all_rules()
+
+
+@app.delete("/alerts/{rule_id}")
+def delete_alert(rule_id: str) -> dict[str, int]:
+    deleted = alert_store.delete_rule(rule_id)
     return {"deleted": deleted}

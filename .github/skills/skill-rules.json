@@ -1,0 +1,425 @@
+{
+    "version": "1.0",
+    "description": "Skill activation triggers for GitHub Copilot. Controls when skills automatically suggest or block actions.",
+    "skills": {
+        "skill-developer": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Meta-skill for creating and managing GitHub Copilot skills",
+            "promptTriggers": {
+                "keywords": [
+                    "skill system",
+                    "create skill",
+                    "add skill",
+                    "skill triggers",
+                    "skill rules",
+                    "hook system",
+                    "skill development",
+                    "skill-rules.json"
+                ],
+                "intentPatterns": [
+                    "(how do|how does|explain).*?skill",
+                    "(create|add|modify|build).*?skill",
+                    "skill.*?(work|trigger|activate|system)"
+                ]
+            }
+        },
+        "backend-dev-guidelines": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Backend development patterns for Node.js/Express/TypeScript",
+            "promptTriggers": {
+                "keywords": [
+                    "backend",
+                    "backend development",
+                    "microservice",
+                    "controller",
+                    "service",
+                    "repository",
+                    "route",
+                    "routing",
+                    "express",
+                    "API",
+                    "endpoint",
+                    "middleware",
+                    "validation",
+                    "Zod",
+                    "Prisma",
+                    "database access",
+                    "BaseController",
+                    "dependency injection",
+                    "unifiedConfig",
+                    "configuration"
+                ],
+                "intentPatterns": [
+                    "(create|add|implement|build).*?(route|endpoint|API|controller|service|repository)",
+                    "(fix|handle|debug).*?(error|exception|backend)",
+                    "(add|implement).*?(middleware|validation|error.*?handling)",
+                    "(organize|structure|refactor).*?(backend|service|API)",
+                    "(how to|best practice).*?(backend|route|controller|service)"
+                ]
+            },
+            "fileTriggers": {
+                "pathPatterns": [
+                    "blog-api/src/**/*.ts",
+                    "auth-service/src/**/*.ts",
+                    "notifications-service/src/**/*.ts",
+                    "backend/**/*.ts",
+                    "api/**/*.ts",
+                    "server/**/*.ts",
+                    "services/**/*.ts"
+                ],
+                "pathExclusions": [
+                    "**/*.test.ts",
+                    "**/*.spec.ts"
+                ],
+                "contentPatterns": [
+                    "router\\.",
+                    "app\\.(get|post|put|delete|patch)",
+                    "export.*Controller",
+                    "export.*Service",
+                    "prisma\\."
+                ]
+            }
+        },
+        "frontend-dev-guidelines": {
+            "type": "guardrail",
+            "enforcement": "block",
+            "priority": "high",
+            "description": "React/TypeScript best practices including MUI v7 compatibility",
+            "promptTriggers": {
+                "keywords": [
+                    "component",
+                    "react component",
+                    "UI",
+                    "interface",
+                    "page",
+                    "modal",
+                    "dialog",
+                    "form",
+                    "MUI",
+                    "Material-UI",
+                    "Grid",
+                    "styling",
+                    "frontend",
+                    "React",
+                    "inline style",
+                    "inline styles",
+                    "style=",
+                    "style={{",
+                    "background color",
+                    "backgroundColor"
+                ],
+                "intentPatterns": [
+                    "(create|add|make|build|update|modify|edit).*?(component|UI|page|modal|dialog|form)",
+                    "(how to|best practice).*?(component|react|MUI)",
+                    "(style|design|layout).*?(component|UI)",
+                    "(create|make|add).*?(button|element).*?(with|using).*?(style|color|background)",
+                    "(inline|raw).*?style"
+                ]
+            },
+            "fileTriggers": {
+                "pathPatterns": [
+                    "frontend/src/**/*.tsx",
+                    "frontend/src/**/*.ts",
+                    "client/src/**/*.tsx",
+                    "client/src/**/*.ts",
+                    "src/**/*.tsx"
+                ],
+                "pathExclusions": [
+                    "**/*.test.tsx",
+                    "**/*.test.ts",
+                    "**/*.spec.tsx",
+                    "**/*.spec.ts",
+                    "**/*.styles.ts",
+                    "**/vite.config.ts",
+                    "**/tsconfig.json"
+                ],
+                "contentPatterns": [
+                    "from '@mui/material';",
+                    "import.*Grid.*from.*@mui",
+                    "<Grid ",
+                    "Grid2",
+                    "Unstable_Grid",
+                    "makeStyles",
+                    "@material-ui/core"
+                ]
+            },
+            "blockedPatterns": {
+                "description": "Patterns that should NEVER be generated - triggers immediate block",
+                "patterns": [
+                    {
+                        "pattern": "style\\s*=\\s*\\{\\{",
+                        "description": "Inline styles in JSX (style={{}})",
+                        "message": "❌ INLINE STYLES FORBIDDEN - Use MUI sx prop instead"
+                    },
+                    {
+                        "pattern": "style\\s*=\\s*[\"']",
+                        "description": "Inline styles in HTML (style=\"...\")",
+                        "message": "❌ INLINE STYLES FORBIDDEN - Use MUI sx prop instead"
+                    },
+                    {
+                        "pattern": "<[a-zA-Z]+\\s+[^>]*style\\s*=",
+                        "description": "Any element with inline style attribute",
+                        "message": "❌ INLINE STYLES FORBIDDEN - Use MUI sx prop or styled components"
+                    }
+                ]
+            },
+            "blockMessage": "⚠️ BLOCKED - Frontend Best Practices Violation\n\n🚫 INLINE STYLES ARE FORBIDDEN!\n\n📋 REQUIRED ACTION:\n1. Use Skill tool: 'frontend-dev-guidelines'\n2. Use MUI sx prop for styling: sx={{ backgroundColor: 'red' }}\n3. For reusable styles: const styles: Record<string, SxProps<Theme>> = {...}\n4. NEVER use style={{}} or style=\"...\"\n\n✅ CORRECT:\n<Button sx={{ backgroundColor: 'red' }}>Click</Button>\n\n❌ WRONG:\n<button style={{ backgroundColor: 'red' }}>Click</button>\n\nReason: Enforce MUI styling patterns and type-safe theming\nFile: {file_path}\n\n💡 TIP: Add '// @skip-validation' comment to skip future checks",
+            "skipConditions": {
+                "sessionSkillUsed": true,
+                "fileMarkers": [
+                    "@skip-validation"
+                ],
+                "envOverride": "SKIP_FRONTEND_GUIDELINES"
+            }
+        },
+        "route-tester": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Testing authenticated API routes with JWT cookie-based auth",
+            "promptTriggers": {
+                "keywords": [
+                    "test route",
+                    "test endpoint",
+                    "test API",
+                    "route testing",
+                    "API testing",
+                    "authenticated route",
+                    "JWT testing",
+                    "cookie auth",
+                    "test with auth"
+                ],
+                "intentPatterns": [
+                    "(test|debug|verify).*?(route|endpoint|API)",
+                    "(how to|how do I).*?test.*?(route|endpoint|API)",
+                    "test.*?(authenticated|auth|JWT|cookie)"
+                ]
+            },
+            "fileTriggers": {
+                "pathPatterns": [
+                    "**/routes/**/*.ts",
+                    "**/test-*.js",
+                    "**/test-*.ts"
+                ],
+                "contentPatterns": [
+                    "router\\.(get|post|put|delete|patch)",
+                    "app\\.(get|post|put|delete|patch)"
+                ]
+            }
+        },
+        "error-tracking": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Sentry error tracking and performance monitoring patterns",
+            "promptTriggers": {
+                "keywords": [
+                    "error handling",
+                    "exception",
+                    "sentry",
+                    "error tracking",
+                    "captureException",
+                    "monitoring",
+                    "performance tracking"
+                ],
+                "intentPatterns": [
+                    "(add|create|implement|setup).*?(error handling|sentry|error tracking)",
+                    "(fix|handle|catch).*?(error|exception)",
+                    "(how to|best practice).*?(error|sentry|monitoring)"
+                ]
+            },
+            "fileTriggers": {
+                "pathPatterns": [
+                    "**/instrument.ts",
+                    "**/sentry*.ts",
+                    "**/*Controller.ts",
+                    "**/*Service.ts"
+                ],
+                "contentPatterns": [
+                    "@sentry",
+                    "Sentry\\.",
+                    "captureException",
+                    "captureMessage"
+                ]
+            }
+        },
+        "safe-rollback": {
+            "type": "process",
+            "enforcement": "block",
+            "priority": "critical",
+            "description": "Safe rollback procedures when reverting changes or undoing modifications",
+            "promptTriggers": {
+                "keywords": [
+                    "revert",
+                    "rollback",
+                    "undo",
+                    "go back",
+                    "restore",
+                    "regression",
+                    "performance regression",
+                    "broke",
+                    "was working before",
+                    "worked earlier",
+                    "undo changes",
+                    "discard changes"
+                ],
+                "intentPatterns": [
+                    "(revert|undo|rollback|restore).*?(change|file|code)",
+                    "(go back|return) to.*(previous|working|before)",
+                    "(regression|broke|broken).*(revert|undo|fix)",
+                    "was.*working.*(before|earlier|previously)"
+                ]
+            },
+            "contextTriggers": {
+                "pathPatterns": [],
+                "contentPatterns": [
+                    "git checkout",
+                    "git restore",
+                    "git diff"
+                ]
+            }
+        },
+        "terminal-discipline": {
+            "type": "process",
+            "enforcement": "block",
+            "priority": "critical",
+            "description": "Terminal command discipline - never interrupt running commands",
+            "promptTriggers": {
+                "keywords": [
+                    "run",
+                    "execute",
+                    "terminal",
+                    "command",
+                    "test",
+                    "build",
+                    "cargo",
+                    "npm",
+                    "server"
+                ],
+                "intentPatterns": [
+                    "(run|execute|start).*?(test|build|server|command)",
+                    "check.*(status|progress|output)",
+                    "is it.*(done|finished|running)"
+                ]
+            },
+            "contextTriggers": {
+                "pathPatterns": [],
+                "contentPatterns": []
+            },
+            "rules": {
+                "absolutelyForbidden": [
+                    "Running new command while another is in progress",
+                    "Interrupting long-running tests or builds",
+                    "Using new commands to check status instead of get_terminal_output"
+                ],
+                "required": [
+                    "isBackground=true for commands >30 seconds",
+                    "get_terminal_output to check status",
+                    "Ask user before assuming command state"
+                ]
+            }
+        },
+        "performance-gate": {
+            "type": "process",
+            "enforcement": "block",
+            "priority": "critical",
+            "description": "Mandatory benchmark before/after for query, storage, or hot path changes",
+            "promptTriggers": {
+                "keywords": [
+                    "optimizer",
+                    "query engine",
+                    "planner",
+                    "UDF",
+                    "execution",
+                    "storage",
+                    "cache",
+                    "index",
+                    "hot path",
+                    "performance",
+                    "middleware"
+                ],
+                "intentPatterns": [
+                    "(add|implement|change).*?(optimizer|rule|UDF|planner|middleware)",
+                    "(modify|update|fix).*?(query|storage|execution|cache)",
+                    "performance.*(sensitive|critical|important)"
+                ]
+            },
+            "contextTriggers": {
+                "pathPatterns": [],
+                "contentPatterns": [
+                    "OptimizerRule",
+                    "add_optimizer_rule",
+                    "register_udf",
+                    "register_udaf",
+                    "middleware",
+                    "interceptor"
+                ]
+            },
+            "rules": {
+                "absolutelyForbidden": [
+                    "Shipping hot path changes without before/after benchmark",
+                    "Assuming code is fast without measurement",
+                    "Merging with >20% p50 regression"
+                ],
+                "required": [
+                    "Capture baseline benchmark BEFORE change",
+                    "Re-benchmark AFTER change",
+                    "Compare and gate on 10% threshold",
+                    "Use feature flags for risky features"
+                ]
+            }
+        },
+        "prd-writer": {
+            "type": "domain",
+            "enforcement": "suggest",
+            "priority": "high",
+            "description": "Write PRDs from user stories including success criteria, architecture/design specs, and TDD-first test + automation task plans",
+            "promptTriggers": {
+                "keywords": [
+                    "PRD",
+                    "prd",
+                    "product requirements document",
+                    "product requirements",
+                    "write a prd",
+                    "generate a prd",
+                    "requirements doc",
+                    "feature spec",
+                    "user story",
+                    "epic",
+                    "acceptance criteria",
+                    "success criteria",
+                    "test plan",
+                    "automation plan"
+                ],
+                "intentPatterns": [
+                    "(write|create|generate|draft).*?(prd|product requirements|requirements doc|feature spec)",
+                    "(turn|convert).*?(user story|epic).*?(prd|requirements|spec)",
+                    "(help|assist).*?(prd|requirements|acceptance criteria|success criteria)",
+                    "(break down|decompose).*?(user story|epic).*?(tasks|features|acceptance criteria)"
+                ]
+            }
+        }
+    },
+    "notes": {
+        "enforcement_types": {
+            "suggest": "Skill suggestion appears but doesn't block execution",
+            "block": "Requires skill to be used before proceeding (guardrail)",
+            "warn": "Shows warning but allows proceeding"
+        },
+        "priority_levels": {
+            "critical": "Highest - Always trigger when matched",
+            "high": "Important - Trigger for most matches",
+            "medium": "Moderate - Trigger for clear matches",
+            "low": "Optional - Trigger only for explicit matches"
+        },
+        "customization": {
+            "pathPatterns": "Adjust to match your project structure (blog-api, auth-service, etc.)",
+            "keywords": "Add domain-specific terms relevant to your project",
+            "intentPatterns": "Use regex for flexible user intent matching"
+        }
+    }
+}

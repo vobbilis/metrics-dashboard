@@ -35,3 +35,12 @@ export async function deleteMetric(name: string): Promise<{ deleted: number }> {
   if (!res.ok) throw new Error(`Failed to delete metric: ${res.status}`)
   return res.json()
 }
+
+export async function fetchMetricHistory(
+  name: string,
+  limit: number = 20,
+): Promise<Metric[]> {
+  const res = await fetch(`${BASE}/metrics/${name}/history?limit=${limit}`)
+  if (!res.ok) throw new Error(`Failed to fetch metric history: ${res.status}`)
+  return res.json()
+}

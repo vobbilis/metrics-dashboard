@@ -31,9 +31,21 @@ NOTE: Copilot hooks use "toolName" (not "tool_name") and
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
+
+# Required sections in specs/*.md plan files
+SPEC_REQUIRED_SECTIONS = [
+    "## Task Description",
+    "## Objective",
+    "## Relevant Files",
+    "## Step by Step Tasks",
+    "## Acceptance Criteria",
+    "## Team Orchestration",
+    "### Team Members",
+]
 
 # Copilot tool names that write/modify files
 FILE_WRITE_TOOLS = {
@@ -138,6 +150,51 @@ def main() -> None:
                         "Fix the type errors before continuing."
                     )
                 )
+
+    # ── Spec file written to specs/ → validate required sections ─────────────
+    if changed_file and re.search(r"(^|/)specs/.*\.md$", changed_file):
+        spec_path = cwd / changed_file if not Path(changed_file).is_absolute() else Path(changed_file)
+        if spec_path.exists():
+            content = spec_path.read_text(encoding="utf-8")
+            missing = [s for s in SPEC_REQUIRED_SECTIONS if s not in content]
+            if missing:
+                block(
+                    reason="Spec file missing required sections",
+                    context=(
+                        f"🛑 Plan file {changed_file} is missing required sections:\n\n"
+                        + "\n".join(f"  - {s}" for s in missing)
+                        + "\n\nAll plan files in specs/ must contain these sections:\n"
+                        + "\n".join(f"  - {s}" for s in SPEC_REQUIRED_SECTIONS)
+                        + "\n\nAdd the missing sections before continuing."
+                    ),
+                )
+
+            # ── Validator frequency check ────────────────────────────────────
+            builder_count = len(re.findall(
+                r"^-\s+\*\*Role\*\*:\s*builder\s*$", content, re.MULTILINE
+            ))
+            validator_count = len(re.findall(
+                r"^-\s+\*\*Role\*\*:\s*validator\s*$", content, re.MULTILINE
+            ))
+            if builder_count > 5:
+                # Require at least 1 intermediate validator + 1 final = 2
+                # For 11+, require 1 per 5 builders + 1 final
+                required_validators = (builder_count // 5) + 1
+                if validator_count < required_validators:
+                    block(
+                        reason="Spec file has insufficient intermediate validators",
+                        context=(
+                            f"🛑 Plan file {changed_file} has {builder_count} builder tasks "
+                            f"but only {validator_count} validator task(s).\n\n"
+                            f"Rule: Plans with >5 builder tasks need intermediate validators.\n"
+                            f"  - {builder_count} builders → need ≥{required_validators} "
+                            f"validator tasks ({required_validators - 1} intermediate + 1 final).\n"
+                            f"  - Currently have: {validator_count}.\n\n"
+                            f"Add intermediate validator tasks (e.g., 'validate-phase-1') "
+                            f"after every ~5 builder tasks. These should run all tests, lint, "
+                            f"and typecheck to catch regressions early."
+                        ),
+                    )
 
     allow()
 
