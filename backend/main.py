@@ -112,7 +112,8 @@ def get_metric(name: str) -> list[MetricOut]:
 @app.delete("/metrics/{name}")
 def delete_metric(name: str) -> dict[str, int]:
     deleted = store.delete(name)
-    return {"deleted": deleted}
+    alerts_deleted = alert_store.delete_rules_by_metric_name(name)
+    return {"deleted": deleted, "alerts_deleted": alerts_deleted}
 
 
 @app.post("/alerts", response_model=AlertRuleOut, status_code=201)
