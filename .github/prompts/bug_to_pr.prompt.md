@@ -40,7 +40,7 @@ honest accounting of what translates, what's approximated, and what's genuinely 
 | `PreToolUse` hook (isolation) | Structural + prompt-enforced | **Strong approximation** — see Review Isolation |
 | Stop hooks per-agent | `postToolUse` (global) + prompt | **Partial** — only file-write validation |
 | `model:` per-agent | `model:` in `.agent.md` frontmatter | **Best-effort** — Copilot may not honor |
-| `resume` / session persistence | N/A | **Missing** — pipeline must complete in one session |
+| `resume` / session persistence | `pipeline-state.json` checkpoint file | **Functional equivalent** — file-based state survives crashes |
 
 ### Review Isolation Design
 
@@ -92,24 +92,62 @@ orchestrator's protocol logic.
 
 ## Workflow
 
+### Recovery After Crash
+
+If the user says "resume", "continue", or the pipeline appears to be mid-run,
+check for an existing state file first:
+
+```bash
+find bugs/ -name "pipeline-state.json" 2>/dev/null | sort | tail -1
+```
+
+If a state file exists, read it:
+
+```bash
+cat <state-file-path>
+```
+
+The state file records which phase completed last. Resume from the **next** phase:
+
+| `phase` value | Resume from |
+|---|---|
+| `"setup"` | Phase 1: Triage |
+| `"triage"` | Phase 2a: Fix Planning |
+| `"fix"` | Phase 3: PR Creation |
+| `"pr"` | Phase 4: Adversarial Review |
+| `"review"` | Phase 5: Merge Gate |
+
+All filesystem artifacts (reports, plans, test results, routing) survive crashes.
+**Never re-run completed phases.** Use the state file's fields (`module`, `fixer_agent`,
+`pr_number`, `alpha_verdict`, `beta_verdict`) to restore orchestrator context.
+
+Reconstruct the todo list from the state file — mark phases up to and including the
+recorded phase as `completed`, mark the next phase as `in-progress`.
+
+---
+
 ### Phase 0: SETUP
 
-1. **Parse input**: Extract the bug description and optional module hint from the user's message.
-2. **Generate BUG-ID**: Run in terminal:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. **Parse input**: Extract the bug description and optional module hint from the user's message.
+3. **Generate BUG-ID**: Run in terminal:
    ```bash
    ls bugs/ 2>/dev/null | grep -oP 'BUG-\d+' | sort -t- -k2 -n | tail -1
    ```
    Take the highest number, increment by 1, zero-pad to 3 digits. If no bugs exist, use `BUG-001`.
-3. **Create directories**: Run in terminal:
+4. **Create directories**: Run in terminal:
    ```bash
    mkdir -p bugs/<BUG-ID>/reviews
    ```
-4. **Create branch**: Run in terminal:
+5. **Create branch**: Run in terminal:
    ```bash
    git checkout -b fix/<bug-id-lowercase> main
    ```
    Use lowercase bug ID (e.g., `fix/bug-001`).
-5. **Initialize todo list**: Create the pipeline tracking list:
+6. **Initialize todo list**: Create the pipeline tracking list:
    ```
    1. [in-progress] Phase 0: Setup
    2. [not-started] Phase 1: Triage (bug-creator + bug-router)
@@ -120,10 +158,19 @@ orchestrator's protocol logic.
    7. [not-started] Phase 4: Adversarial Review
    8. [not-started] Phase 5: Merge Gate
    ```
+7. **Persist state**: Write the initial pipeline state to disk:
+   ```bash
+   echo '{"bug_id":"<BUG-ID>","phase":"setup","branch":"fix/<bug-id-lowercase>","fix_cycle":0}' \
+     > bugs/<BUG-ID>/pipeline-state.json
+   ```
 
 ### Phase 1: TRIAGE
 
-1. **Dispatch bug-creator**:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. **Dispatch bug-creator**:
    ```
    runSubagent(
      agentName: "bug-creator",
@@ -144,10 +191,10 @@ orchestrator's protocol logic.
               frontend is React TypeScript in frontend/src/."
    )
    ```
-2. **Verify report**: Read `bugs/<BUG-ID>/report.md` and confirm all 8 sections exist.
+3. **Verify report**: Read `bugs/<BUG-ID>/report.md` and confirm all 8 sections exist.
    If the bug-creator failed, report the failure and stop.
 
-3. **Route the bug** (skip if module hint provided):
+4. **Route the bug** (skip if module hint provided):
    - If the user provided a module hint, read `.github/bug-modules.json` and use the
      matching module directly. Set the routing decision and skip to step 5.
    - Otherwise, dispatch the bug-router:
@@ -165,13 +212,19 @@ orchestrator's protocol logic.
                 Do NOT write any files — you are read-only."
      )
      ```
-4. **Parse routing**: Extract the JSON routing decision from the router's response.
+5. **Parse routing**: Extract the JSON routing decision from the router's response.
    Validate it contains `module` and `fixer_agent` fields. If parsing fails, use the
    `default_fixer` from `.github/bug-modules.json`.
 
-5. **Record routing**: Write `bugs/<BUG-ID>/routing.json` via terminal:
+6. **Record routing**: Write `bugs/<BUG-ID>/routing.json` via terminal:
    ```bash
    echo '{"module": "<module>", "fixer_agent": "<fixer>", "confidence": "<conf>"}' > bugs/<BUG-ID>/routing.json
+   ```
+7. **Persist state**: Update the pipeline state file:
+   ```bash
+   cat > bugs/<BUG-ID>/pipeline-state.json << 'STATE_EOF'
+   {"bug_id":"<BUG-ID>","phase":"triage","branch":"fix/<bug-id-lowercase>","fix_cycle":0,"module":"<module>","fixer_agent":"<fixer>","report_path":"bugs/<BUG-ID>/report.md"}
+   STATE_EOF
    ```
 
 ### Phase 2: FIX (Nested Orchestration)
@@ -180,8 +233,12 @@ This phase performs the equivalent of `plan_to_build` + `build` within the pipel
 
 #### Phase 2a: Fix Planning
 
-1. Read `.github/bug-modules.json` to get the fixer agent name for the routed module.
-2. **Dispatch the fixer agent**:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. Read `.github/bug-modules.json` to get the fixer agent name for the routed module.
+3. **Dispatch the fixer agent**:
    ```
    runSubagent(
      agentName: "<fixer_agent from routing>",
@@ -203,7 +260,7 @@ This phase performs the equivalent of `plan_to_build` + `build` within the pipel
               Each task: ≥50 words, acceptance criteria, validation command."
    )
    ```
-3. **Verify plan**: Read `specs/fix-<bug-id>.md` and confirm it has the required sections.
+4. **Verify plan**: Read `specs/fix-<bug-id>.md` and confirm it has the required sections.
    If the fixer failed, report and stop.
 
 #### Phase 2b: Fix Execution (Inline Build Protocol)
@@ -229,28 +286,42 @@ The builder TDD preamble and validator dispatch format are identical to
 
 After the build completes:
 
-1. Read `.github/bug-modules.json` to get the module's `test_command`.
-2. Run the test command and capture output:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. Read `.github/bug-modules.json` to get the module's `test_command`.
+3. Run the test command and capture output:
    ```bash
    <test_command> 2>&1 | tee bugs/<BUG-ID>/test-results.md
    ```
-3. Verify `bugs/<BUG-ID>/test-results.md` exists and contains actual test runner output
+4. Verify `bugs/<BUG-ID>/test-results.md` exists and contains actual test runner output
    (not empty, not just prose).
+5. **Persist state**: Update the pipeline state file:
+   ```bash
+   cat > bugs/<BUG-ID>/pipeline-state.json << 'STATE_EOF'
+   {"bug_id":"<BUG-ID>","phase":"fix","branch":"fix/<bug-id-lowercase>","fix_cycle":<N>,"module":"<module>","fixer_agent":"<fixer>","report_path":"bugs/<BUG-ID>/report.md"}
+   STATE_EOF
+   ```
 
 ### Phase 3: PR CREATION + ARTIFACT POSTING
 
-1. **Stage and commit**:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. **Stage and commit**:
    ```bash
    git add -A
    git commit -m "fix: <brief description from bug report>
 
    Fixes <BUG-ID>. See bugs/<BUG-ID>/report.md for details."
    ```
-2. **Push branch**:
+3. **Push branch**:
    ```bash
    git push -u origin fix/<bug-id-lowercase>
    ```
-3. **Create PR**:
+4. **Create PR**:
    ```bash
    gh pr create \
      --base main \
@@ -272,10 +343,16 @@ After the build completes:
    This PR was created by the \`bug_to_pr\` pipeline with full TDD,
    adversarial review, and automated validation."
    ```
-4. **Capture PR number**: Extract from `gh pr create` output.
-5. **Post bug report as PR comment**:
+5. **Capture PR number**: Extract from `gh pr create` output.
+6. **Post bug report as PR comment**:
    ```bash
    gh pr comment <PR_NUMBER> --body-file bugs/<BUG-ID>/report.md
+   ```
+7. **Persist state**: Update the pipeline state file:
+   ```bash
+   cat > bugs/<BUG-ID>/pipeline-state.json << 'STATE_EOF'
+   {"bug_id":"<BUG-ID>","phase":"pr","branch":"fix/<bug-id-lowercase>","fix_cycle":<N>,"module":"<module>","fixer_agent":"<fixer>","report_path":"bugs/<BUG-ID>/report.md","pr_number":<PR_NUMBER>,"pr_url":"<PR_URL>"}
+   STATE_EOF
    ```
 
 ### Phase 4: ADVERSARIAL REVIEW
@@ -283,7 +360,11 @@ After the build completes:
 **CRITICAL ISOLATION PROTOCOL**: Do NOT write review files until BOTH reviewers complete.
 Hold verdicts in memory (the orchestrator's context).
 
-1. **Dispatch reviewer-alpha**:
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. **Dispatch reviewer-alpha**:
    ```
    runSubagent(
      agentName: "bug-reviewer",
@@ -309,10 +390,10 @@ Hold verdicts in memory (the orchestrator's context).
               (it should not exist yet — but do not attempt to read it)."
    )
    ```
-2. **Capture alpha verdict**: Store the full response text in memory. Extract the
+3. **Capture alpha verdict**: Store the full response text in memory. Extract the
    `## Verdict:` line. Do NOT write to disk yet.
 
-3. **Dispatch reviewer-beta**:
+4. **Dispatch reviewer-beta**:
    ```
    runSubagent(
      agentName: "bug-reviewer",
@@ -338,10 +419,10 @@ Hold verdicts in memory (the orchestrator's context).
               (it should not exist yet — but do not attempt to read it)."
    )
    ```
-4. **Capture beta verdict**: Store the full response text in memory. Extract the
+5. **Capture beta verdict**: Store the full response text in memory. Extract the
    `## Verdict:` line.
 
-5. **NOW write both review files** (only after both reviewers have completed):
+6. **NOW write both review files** (only after both reviewers have completed):
    ```bash
    # Write alpha's review
    cat > bugs/<BUG-ID>/reviews/alpha.md << 'REVIEW_EOF'
@@ -354,7 +435,7 @@ Hold verdicts in memory (the orchestrator's context).
    REVIEW_EOF
    ```
 
-6. **Post verdicts as PR reviews**:
+7. **Post verdicts as PR reviews**:
    For each reviewer (alpha, then beta):
    - Parse `## Verdict: APPROVE` or `## Verdict: REJECT` from the review text.
    - If **APPROVE**:
@@ -370,18 +451,28 @@ Hold verdicts in memory (the orchestrator's context).
      <reviewer's full verdict text with rejection reasons>"
      ```
 
-7. **Commit review artifacts**:
+8. **Commit review artifacts**:
    ```bash
    git add bugs/<BUG-ID>/reviews/
    git commit -m "chore: add review verdicts for <BUG-ID>"
    git push
    ```
+9. **Persist state**: Update the pipeline state file:
+   ```bash
+   cat > bugs/<BUG-ID>/pipeline-state.json << 'STATE_EOF'
+   {"bug_id":"<BUG-ID>","phase":"review","branch":"fix/<bug-id-lowercase>","fix_cycle":<N>,"module":"<module>","fixer_agent":"<fixer>","report_path":"bugs/<BUG-ID>/report.md","pr_number":<PR_NUMBER>,"pr_url":"<PR_URL>","alpha_verdict":"<APPROVE|REJECT>","beta_verdict":"<APPROVE|REJECT>"}
+   STATE_EOF
+   ```
 
 ### Phase 5: MERGE GATE
 
-1. **Parse verdicts**: Check both reviews for `## Verdict: APPROVE` or `## Verdict: REJECT`.
+1. **Reset working directory**: Run in terminal:
+   ```bash
+   cd $(git rev-parse --show-toplevel)
+   ```
+2. **Parse verdicts**: Check both reviews for `## Verdict: APPROVE` or `## Verdict: REJECT`.
 
-2. **If BOTH approve**:
+3. **If BOTH approve**:
    - Write verdict summary:
      ```bash
      echo '{"merge_allowed": true, "alpha": "APPROVE", "beta": "APPROVE"}' > bugs/<BUG-ID>/verdict.json
@@ -397,7 +488,7 @@ Hold verdicts in memory (the orchestrator's context).
      ```
    - If user declines: report status, do NOT merge.
 
-3. **If EITHER rejects**:
+4. **If EITHER rejects**:
    - Write verdict summary:
      ```bash
      echo '{"merge_allowed": false, "alpha": "<verdict>", "beta": "<verdict>"}' > bugs/<BUG-ID>/verdict.json
@@ -413,7 +504,7 @@ Hold verdicts in memory (the orchestrator's context).
      - The PR is automatically updated when new commits are pushed.
    - If max cycles (2) reached: report all rejection reasons, stop pipeline.
 
-4. **Clean up** (on success):
+5. **Clean up** (on success):
    ```bash
    git add bugs/<BUG-ID>/verdict.json
    git commit -m "chore: add verdict for <BUG-ID>"
