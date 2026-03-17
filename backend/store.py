@@ -27,24 +27,42 @@ class MetricStore:
     def all(self) -> list[MetricOut]:
         return list(self._data.values())
 
-    def filter_by_tags(self, tags: list[tuple[str, str]]) -> list[MetricOut]:
-        if not tags:
-            return list(self._data.values())
-        return [
-            m for m in self._data.values()
-            if all(m.tags.get(k) == v for k, v in tags)
-        ]
+    def filter_by_tags(
+        self,
+        tags: list[tuple[str, str]],
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[MetricOut]:
+        metrics = list(self._data.values())
+        if tags:
+            metrics = [m for m in metrics if all(m.tags.get(k) == v for k, v in tags)]
+        if start is not None:
+            metrics = [m for m in metrics if m.timestamp >= start]
+        if end is not None:
+            metrics = [m for m in metrics if m.timestamp <= end]
+        return metrics
 
     def by_name(self, name: str) -> list[MetricOut]:
         entry = self._data.get(name)
         return [entry] if entry else []
 
-    def history(self, name: str, limit: int = 20) -> list[MetricOut]:
+    def history(
+        self,
+        name: str,
+        limit: int = 20,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[MetricOut]:
         entries = self._history.get(name)
         if entries is None:
             return []
-        limit = max(1, min(limit, 20))
-        return list(entries)[-limit:]
+        result = list(entries)
+        if start is not None:
+            result = [m for m in result if m.timestamp >= start]
+        if end is not None:
+            result = [m for m in result if m.timestamp <= end]
+        limit = max(1, min(limit, len(result) if result else 20))
+        return result[-limit:]
 
     def delete(self, name: str) -> int:
         deleted = 1 if name in self._data else 0

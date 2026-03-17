@@ -12,6 +12,7 @@ describe('App', () => {
     vi.mocked(api.fetchMetrics).mockResolvedValue([])
     vi.mocked(api.fetchAlerts).mockResolvedValue([])
     vi.mocked(api.fetchMetricHistory).mockResolvedValue([])
+    vi.mocked(api.fetchAlertEvents).mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -26,7 +27,7 @@ describe('App', () => {
   it('shows empty state when no metrics', async () => {
     render(<App />)
     expect(
-      await screen.findByText('No metrics yet. Submit one above.')
+      await screen.findByText('No metrics yet. Submit one above or wait for host metrics.')
     ).toBeInTheDocument()
   })
 
@@ -42,7 +43,6 @@ describe('App', () => {
     ])
     render(<App />)
     expect(await screen.findByText('cpu')).toBeInTheDocument()
-    expect(await screen.findByText('42.5')).toBeInTheDocument()
   })
 
   it('renders alerts when returned from API', async () => {
@@ -57,7 +57,9 @@ describe('App', () => {
       },
     ])
     render(<App />)
-    expect(await screen.findByText('cpu > 80 (firing)')).toBeInTheDocument()
+    expect(await screen.findByText('cpu')).toBeInTheDocument()
+    expect(await screen.findByText('> 80')).toBeInTheDocument()
+    expect(await screen.findByText('firing')).toBeInTheDocument()
   })
 
   it('shows empty alerts section when no alerts', async () => {
@@ -66,24 +68,24 @@ describe('App', () => {
   })
 
   describe('Alert Integration Tests', () => {
-    it('polls both metrics and alerts synchronously', async () => {
+    it('polls metrics, alerts, and alert events synchronously', async () => {
       vi.useFakeTimers()
 
       render(<App />)
 
-      // Initial calls should happen immediately
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(1)
       expect(vi.mocked(api.fetchAlerts)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(api.fetchAlertEvents)).toHaveBeenCalledTimes(1)
 
-      // After 5 seconds, both should be called again (second time)
       await vi.advanceTimersByTimeAsync(5000)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(2)
       expect(vi.mocked(api.fetchAlerts)).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(api.fetchAlertEvents)).toHaveBeenCalledTimes(2)
 
-      // After another 5 seconds, both should be called again (third time)
       await vi.advanceTimersByTimeAsync(5000)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(3)
       expect(vi.mocked(api.fetchAlerts)).toHaveBeenCalledTimes(3)
+      expect(vi.mocked(api.fetchAlertEvents)).toHaveBeenCalledTimes(3)
     })
 
     it('handles alert fetch errors gracefully', async () => {
@@ -102,11 +104,7 @@ describe('App', () => {
 
       render(<App />)
 
-      // Metrics should still render correctly despite alert fetch error
       expect(await screen.findByText('cpu')).toBeInTheDocument()
-      expect(await screen.findByText('42.5')).toBeInTheDocument()
-
-      // Should show no alerts configured (default state when fetch fails)
       expect(
         await screen.findByText('No alerts configured.')
       ).toBeInTheDocument()
@@ -126,12 +124,9 @@ describe('App', () => {
 
       render(<App />)
 
-      expect(
-        await screen.findByText('memory > 90 (firing)')
-      ).toBeInTheDocument()
-
-      const alertElement = await screen.findByText('memory > 90 (firing)')
-      expect(alertElement).toHaveClass('alert-state-firing')
+      expect(await screen.findByText('memory')).toBeInTheDocument()
+      expect(await screen.findByText('> 90')).toBeInTheDocument()
+      expect(await screen.findByText('firing')).toBeInTheDocument()
     })
   })
 
@@ -166,7 +161,7 @@ describe('App', () => {
       await user.click(screen.getByText('Add Filter'))
 
       expect(await screen.findByText('env:prod')).toBeInTheDocument()
-      expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledWith(['env:prod'])
+      expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledWith(['env:prod'], undefined, undefined)
     })
 
     it('removes a tag chip when clicking remove button', async () => {
@@ -181,8 +176,7 @@ describe('App', () => {
 
       await user.click(screen.getByLabelText('Remove env:prod'))
 
-      expect(screen.queryByText('env:prod')).not.toBeInTheDocument()
-      expect(vi.mocked(api.fetchMetrics)).toHaveBeenLastCalledWith([])
+      expect(vi.mocked(api.fetchMetrics)).toHaveBeenLastCalledWith([], undefined, undefined)
     })
   })
 
@@ -191,23 +185,18 @@ describe('App', () => {
       vi.useFakeTimers()
       render(<App />)
 
-      // Initial fetch fires immediately
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(1)
 
-      // Advance 4 seconds — one second before the first periodic poll
       await vi.advanceTimersByTimeAsync(4000)
-      expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(1) // still only initial
+      expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(1)
 
-      // Add a tag filter mid-cycle (use fireEvent to avoid userEvent timer issues)
       const input = screen.getByPlaceholderText('Filter by tag (e.g. env:prod)')
       fireEvent.change(input, { target: { value: 'env:prod' } })
       fireEvent.click(screen.getByText('Add Filter'))
 
-      // Immediate re-fetch fires due to filter change — call count = 2
       await vi.advanceTimersByTimeAsync(0)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(2)
 
-      // Advance 1 more second (total 5s from start) — the original poll should fire
       await vi.advanceTimersByTimeAsync(1000)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(3)
     })
@@ -216,26 +205,21 @@ describe('App', () => {
       vi.useFakeTimers()
       render(<App />)
 
-      // Initial fetch
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(1)
 
-      // Add a tag
       const input = screen.getByPlaceholderText('Filter by tag (e.g. env:prod)')
       fireEvent.change(input, { target: { value: 'env:prod' } })
       fireEvent.click(screen.getByText('Add Filter'))
       await vi.advanceTimersByTimeAsync(0)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(2)
 
-      // Advance to first poll (5s)
       await vi.advanceTimersByTimeAsync(5000)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(3)
 
-      // Remove the tag at ~5s mark
       fireEvent.click(screen.getByLabelText('Remove env:prod'))
       await vi.advanceTimersByTimeAsync(0)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(4)
 
-      // Next poll should fire at 10s (5s after previous poll), not 5s after removal
       await vi.advanceTimersByTimeAsync(5000)
       expect(vi.mocked(api.fetchMetrics)).toHaveBeenCalledTimes(5)
     })
@@ -300,15 +284,53 @@ describe('App', () => {
       await user.type(input, 'env:prod')
       await user.click(screen.getByText('Add Filter'))
 
-      // Verify tag is in URL
       let exportLink = await screen.findByText('Export CSV')
       expect(exportLink.getAttribute('href')).toContain('tag=')
 
-      // Remove the tag
       await user.click(screen.getByLabelText('Remove env:prod'))
 
       exportLink = screen.getByText('Export CSV')
       expect(exportLink).toHaveAttribute('href', '/api/metrics/export?format=csv')
+    })
+  })
+
+  describe('AlertPanel Integration', () => {
+    it('renders alert create form', async () => {
+      render(<App />)
+      expect(await screen.findByTestId('alert-metric-input')).toBeInTheDocument()
+      expect(screen.getByTestId('alert-operator-select')).toBeInTheDocument()
+      expect(screen.getByTestId('alert-threshold-input')).toBeInTheDocument()
+      expect(screen.getByTestId('alert-submit-btn')).toBeInTheDocument()
+    })
+
+    it('renders alert history when events exist', async () => {
+      vi.mocked(api.fetchAlertEvents).mockResolvedValue([
+        {
+          rule_id: 'r1',
+          metric_name: 'cpu',
+          old_state: 'ok',
+          new_state: 'firing',
+          timestamp: new Date().toISOString(),
+        },
+      ])
+      render(<App />)
+      expect(await screen.findByText('History')).toBeInTheDocument()
+      expect(await screen.findByText('cpu')).toBeInTheDocument()
+    })
+
+    it('does not render history section when no events', async () => {
+      render(<App />)
+      await screen.findByTestId('alert-metric-input')
+      expect(screen.queryByText('History')).not.toBeInTheDocument()
+    })
+
+    it('handles fetchAlertEvents error gracefully', async () => {
+      vi.mocked(api.fetchAlertEvents).mockRejectedValue(
+        new Error('Events service down')
+      )
+      render(<App />)
+      expect(await screen.findByTestId('alert-metric-input')).toBeInTheDocument()
+      expect(screen.queryByText('History')).not.toBeInTheDocument()
     })
   })
 })

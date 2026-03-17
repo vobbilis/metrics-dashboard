@@ -8,10 +8,12 @@ from main import _evaluate_loop
 
 async def _fake_sleep_factory(call_count_ref):
     """Create a fake sleep that cancels after 3 calls."""
+
     async def _fake_sleep(seconds):
         call_count_ref[0] += 1
         if call_count_ref[0] >= 3:
             raise asyncio.CancelledError
+
     return _fake_sleep
 
 
@@ -33,9 +35,11 @@ async def test_evaluate_loop_recovers_from_exception():
         if sleep_count[0] >= 3:
             raise asyncio.CancelledError
 
-    with patch("main.alert_store") as mock_alert_store, \
-         patch("main.store"), \
-         patch("main.asyncio.sleep", side_effect=fake_sleep):
+    with (
+        patch("main.alert_store") as mock_alert_store,
+        patch("main.store"),
+        patch("main.asyncio.sleep", side_effect=fake_sleep),
+    ):
         mock_alert_store.evaluate = mock_evaluate
 
         with pytest.raises(asyncio.CancelledError):
