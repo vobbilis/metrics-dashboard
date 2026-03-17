@@ -1,6 +1,8 @@
 import asyncio
 import csv
 import io
+import time
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -763,7 +765,9 @@ def test_tag_filter_invalid_format():
 
 def test_tag_filter_colon_in_value():
     """GET /metrics?tag=key:val:with:colons correctly parses key and value."""
-    client.post("/metrics", json={"name": "cpu", "value": 10.0, "tags": {"url": "http://example.com"}})
+    client.post(
+        "/metrics", json={"name": "cpu", "value": 10.0, "tags": {"url": "http://example.com"}}
+    )
     r = client.get("/metrics?tag=url:http://example.com")
     assert r.status_code == 200
     data = r.json()
@@ -821,8 +825,22 @@ def test_metrics_export_csv_tag_filter():
 
 def test_metrics_export_csv_multi_tag_filter():
     """Export with multiple tags returns only metrics matching ALL tags."""
-    client.post("/metrics", json={"name": "cpu", "value": 10.0, "tags": {"env": "prod", "service": "api"}})
-    client.post("/metrics", json={"name": "mem", "value": 20.0, "tags": {"env": "prod", "service": "web"}})
+    client.post(
+        "/metrics",
+        json={
+            "name": "cpu",
+            "value": 10.0,
+            "tags": {"env": "prod", "service": "api"},
+        },
+    )
+    client.post(
+        "/metrics",
+        json={
+            "name": "mem",
+            "value": 20.0,
+            "tags": {"env": "prod", "service": "web"},
+        },
+    )
     client.post("/metrics", json={"name": "disk", "value": 30.0, "tags": {"env": "staging"}})
 
     r = client.get("/metrics/export?format=csv&tag=env:prod&tag=service:api")
@@ -899,3 +917,304 @@ def test_by_name_returns_latest_only():
     data = r.json()
     assert len(data) == 1
     assert data[0]["value"] == 99.0
+
+
+# --- Time-range filtering tests ---
+
+
+def test_list_metrics_with_start_filter():
+    """GET /metrics?start=ISO returns only metrics after start time."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    time.sleep(0.05)
+    after = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "mem", "value": 20.0})
+
+    r = client.get("/metrics", params={"start": after})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "mem"
+
+
+def test_list_metrics_with_end_filter():
+    """GET /metrics?end=ISO returns only metrics before end time."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    time.sleep(0.05)
+    before = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "mem", "value": 20.0})
+
+    r = client.get("/metrics", params={"end": before})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "cpu"
+
+
+def test_list_metrics_with_start_and_end_filter():
+    """GET /metrics?start=...&end=... returns only metrics within the window."""
+    client.post("/metrics", json={"name": "early", "value": 1.0})
+    time.sleep(0.05)
+    start = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "middle", "value": 2.0})
+    time.sleep(0.05)
+    end = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "late", "value": 3.0})
+
+    r = client.get("/metrics", params={"start": start, "end": end})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "middle"
+
+
+def test_list_metrics_time_and_tag_combined():
+    """Time and tag filters combine with AND logic."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0, "tags": {"env": "prod"}})
+    time.sleep(0.05)
+    after = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "mem", "value": 20.0, "tags": {"env": "prod"}})
+    client.post("/metrics", json={"name": "disk", "value": 30.0, "tags": {"env": "staging"}})
+
+    r = client.get("/metrics", params={"tag": "env:prod", "start": after})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "mem"
+
+
+def test_list_metrics_invalid_start_format():
+    """GET /metrics?start=not-a-date returns 400."""
+    r = client.get("/metrics", params={"start": "not-a-date"})
+    assert r.status_code == 400
+    assert "Invalid datetime format" in r.json()["detail"]
+
+
+def test_list_metrics_invalid_end_format():
+    """GET /metrics?end=not-a-date returns 400."""
+    r = client.get("/metrics", params={"end": "not-a-date"})
+    assert r.status_code == 400
+    assert "Invalid datetime format" in r.json()["detail"]
+
+
+def test_list_metrics_no_time_params_backward_compat():
+    """GET /metrics without start/end still returns all metrics."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    client.post("/metrics", json={"name": "mem", "value": 20.0})
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    assert len(r.json()) == 2
+
+
+def test_history_with_start_filter():
+    """GET /metrics/{name}/history?start=ISO returns only entries after start."""
+    for i in range(3):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    after = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+
+    for i in range(3, 6):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    r = client.get("/metrics/cpu/history", params={"start": after})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 3
+    values = [m["value"] for m in data]
+    assert all(v >= 3.0 for v in values)
+
+
+def test_history_with_end_filter():
+    """GET /metrics/{name}/history?end=ISO returns only entries before end."""
+    for i in range(3):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    before = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+
+    for i in range(3, 6):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    r = client.get("/metrics/cpu/history", params={"end": before})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 3
+    values = [m["value"] for m in data]
+    assert all(v < 3.0 for v in values)
+
+
+def test_history_with_start_and_limit():
+    """History with start and limit combines correctly."""
+    for i in range(5):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    after = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+
+    for i in range(5, 10):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+        time.sleep(0.05)
+
+    r = client.get("/metrics/cpu/history", params={"start": after, "limit": 2})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 2
+    # Should be the last 2 entries after start (limit takes from end)
+    values = [m["value"] for m in data]
+    assert all(v >= 5.0 for v in values)
+
+
+def test_history_no_time_params_backward_compat():
+    """GET /metrics/{name}/history without start/end still returns all history."""
+    for i in range(5):
+        client.post("/metrics", json={"name": "cpu", "value": float(i)})
+
+    r = client.get("/metrics/cpu/history")
+    assert r.status_code == 200
+    assert len(r.json()) == 5
+
+
+def test_export_with_time_range():
+    """CSV export with time range filters correctly."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    time.sleep(0.05)
+    after = datetime.now(UTC).isoformat()
+    time.sleep(0.05)
+    client.post("/metrics", json={"name": "mem", "value": 20.0})
+
+    r = client.get("/metrics/export", params={"format": "csv", "start": after})
+    assert r.status_code == 200
+    csv_reader = csv.reader(io.StringIO(r.text))
+    rows = list(csv_reader)
+    assert len(rows) == 2  # header + 1 data row
+    assert rows[1][1] == "mem"
+
+
+def test_list_metrics_empty_time_window():
+    """Time window that contains no metrics returns empty list."""
+    client.post("/metrics", json={"name": "cpu", "value": 10.0})
+    time.sleep(0.05)
+
+    # Set start in the future
+    future = "2099-01-01T00:00:00"
+    r = client.get("/metrics", params={"start": future})
+    assert r.status_code == 200
+    assert len(r.json()) == 0
+
+
+# --- Alert management: update rule and event log tests ---
+
+
+def test_update_alert_rule():
+    """PUT /alerts/{rule_id} updates threshold and keeps state ok."""
+    r = client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+    rule_id = r.json()["id"]
+
+    r2 = client.put(f"/alerts/{rule_id}", json={"threshold": 95.0})
+    assert r2.status_code == 200
+    data = r2.json()
+    assert data["threshold"] == 95.0
+    assert data["state"] == "ok"
+
+
+def test_update_alert_rule_partial():
+    """PUT with only metric_name leaves other fields unchanged."""
+    r = client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+    rule_id = r.json()["id"]
+
+    r2 = client.put(f"/alerts/{rule_id}", json={"metric_name": "mem"})
+    assert r2.status_code == 200
+    data = r2.json()
+    assert data["metric_name"] == "mem"
+    assert data["operator"] == "gt"
+    assert data["threshold"] == 80.0
+
+
+def test_update_alert_rule_not_found():
+    """PUT /alerts/nonexistent returns 404."""
+    r = client.put("/alerts/nonexistent", json={"threshold": 50.0})
+    assert r.status_code == 404
+
+
+def test_update_alert_resets_state():
+    """PUT on a firing rule resets state to ok."""
+    r = client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+    rule_id = r.json()["id"]
+
+    # Trigger firing
+    client.post("/metrics", json={"name": "cpu", "value": 95.0})
+    alert_store.evaluate(store)
+    alerts = client.get("/alerts").json()
+    assert alerts[0]["state"] == "firing"
+
+    # Update resets state
+    r2 = client.put(f"/alerts/{rule_id}", json={"threshold": 99.0})
+    assert r2.status_code == 200
+    assert r2.json()["state"] == "ok"
+
+
+def test_get_alert_events_empty():
+    """GET /alerts/events returns empty list when no transitions occurred."""
+    r = client.get("/alerts/events")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_get_alert_events_after_transition():
+    """GET /alerts/events returns event after a state transition."""
+    r = client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+    rule_id = r.json()["id"]
+
+    client.post("/metrics", json={"name": "cpu", "value": 95.0})
+    alert_store.evaluate(store)
+
+    events = client.get("/alerts/events").json()
+    assert len(events) == 1
+    assert events[0]["rule_id"] == rule_id
+    assert events[0]["old_state"] == "ok"
+    assert events[0]["new_state"] == "firing"
+    assert events[0]["metric_name"] == "cpu"
+
+
+def test_alert_events_multiple_transitions():
+    """ok->firing->ok produces 2 events."""
+    client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+
+    # ok -> firing
+    client.post("/metrics", json={"name": "cpu", "value": 95.0})
+    alert_store.evaluate(store)
+
+    # firing -> ok
+    client.post("/metrics", json={"name": "cpu", "value": 50.0})
+    alert_store.evaluate(store)
+
+    events = client.get("/alerts/events").json()
+    assert len(events) == 2
+    assert events[0]["old_state"] == "ok"
+    assert events[0]["new_state"] == "firing"
+    assert events[1]["old_state"] == "firing"
+    assert events[1]["new_state"] == "ok"
+
+
+def test_alert_events_cap_at_200():
+    """Event log is capped at 200 entries."""
+    client.post("/alerts", json={"metric_name": "cpu", "operator": "gt", "threshold": 80.0})
+
+    for i in range(201):
+        # Alternate above/below threshold to create transitions
+        value = 95.0 if i % 2 == 0 else 50.0
+        client.post("/metrics", json={"name": "cpu", "value": value})
+        alert_store.evaluate(store)
+
+    events = client.get("/alerts/events").json()
+    assert len(events) <= 200

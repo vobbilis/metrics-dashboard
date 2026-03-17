@@ -6,16 +6,17 @@ import * as api from '../api'
 
 vi.mock('../api')
 
-// Mock recharts ResponsiveContainer for jsdom
-vi.mock('recharts', async () => {
-  const actual = await vi.importActual('recharts')
-  return {
-    ...actual,
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div style={{ width: 150, height: 60 }}>{children}</div>
-    ),
-  }
-})
+// Mock recharts for jsdom
+vi.mock('recharts', () => ({
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+  AreaChart: ({ children }: { children: React.ReactNode }) => (
+    <svg data-testid="area-chart">{children}</svg>
+  ),
+  Area: () => <path data-testid="area" />,
+  YAxis: () => null,
+}))
 
 const mockMetric: api.Metric = {
   id: '1',
@@ -40,10 +41,10 @@ describe('MetricCard', () => {
   it('calls fetchMetricHistory on mount', () => {
     vi.mocked(api.fetchMetricHistory).mockResolvedValue([])
     render(<MetricCard metric={mockMetric} onDelete={vi.fn()} />)
-    expect(api.fetchMetricHistory).toHaveBeenCalledWith('cpu')
+    expect(api.fetchMetricHistory).toHaveBeenCalledWith('cpu', 20, undefined, undefined)
   })
 
-  it('renders sparkline when history data is available', async () => {
+  it('renders chart when history data is available', async () => {
     vi.mocked(api.fetchMetricHistory).mockResolvedValue([
       { id: '1', name: 'cpu', value: 40, tags: {}, timestamp: '2026-03-15T09:58:00Z' },
       { id: '2', name: 'cpu', value: 42, tags: {}, timestamp: '2026-03-15T09:59:00Z' },
@@ -51,26 +52,26 @@ describe('MetricCard', () => {
     ])
     const { container } = render(<MetricCard metric={mockMetric} onDelete={vi.fn()} />)
     await waitFor(() => {
-      expect(container.querySelector('.metric-sparkline')).not.toBeNull()
+      expect(container.querySelector('.panel-chart')).not.toBeNull()
     })
   })
 
-  it('does not render sparkline when history is empty', async () => {
+  it('does not render chart when history is empty', async () => {
     vi.mocked(api.fetchMetricHistory).mockResolvedValue([])
     const { container } = render(<MetricCard metric={mockMetric} onDelete={vi.fn()} />)
     await waitFor(() => {
       expect(api.fetchMetricHistory).toHaveBeenCalled()
     })
-    expect(container.querySelector('.metric-sparkline')).toBeNull()
+    expect(container.querySelector('.panel-chart')).toBeNull()
   })
 
-  it('does not render sparkline when history fetch fails', async () => {
+  it('does not render chart when history fetch fails', async () => {
     vi.mocked(api.fetchMetricHistory).mockRejectedValue(new Error('Not found'))
     const { container } = render(<MetricCard metric={mockMetric} onDelete={vi.fn()} />)
     await waitFor(() => {
       expect(api.fetchMetricHistory).toHaveBeenCalled()
     })
-    expect(container.querySelector('.metric-sparkline')).toBeNull()
+    expect(container.querySelector('.panel-chart')).toBeNull()
   })
 
   it('renders delete button with correct aria label', () => {
@@ -82,7 +83,7 @@ describe('MetricCard', () => {
   it('renders metric tags', () => {
     vi.mocked(api.fetchMetricHistory).mockResolvedValue([])
     render(<MetricCard metric={mockMetric} onDelete={vi.fn()} />)
-    expect(screen.getByText('host=server1')).toBeInTheDocument()
+    expect(screen.getByText('host:server1')).toBeInTheDocument()
   })
 
   it('calls onDelete after successful delete', async () => {
