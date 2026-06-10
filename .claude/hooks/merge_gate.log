@@ -1,0 +1,11 @@
+2026-03-15 10:57:54 | INFO | Merge gate activated for command: gh pr merge 5 --merge --delete-branch
+2026-03-15 10:57:54 | WARNING | No pipeline state, allowing merge (fail-open)
+2026-03-15 10:57:59 | INFO | Merge gate activated for command: gh pr merge 5 --squash --delete-branch
+2026-03-15 10:57:59 | WARNING | No pipeline state, allowing merge (fail-open)
+2026-03-15 11:08:51 | INFO | Merge gate activated for command: gh pr create --title "docs: add v2 reliability improvements to README" --body "$(cat <<'EOF'
+## Summ
+2026-03-15 11:08:51 | WARNING | No pipeline state, allowing merge (fail-open)
+2026-03-15 11:09:03 | INFO | Merge gate activated for command: gh pr merge 6 --squash
+2026-03-15 11:09:03 | WARNING | No pipeline state, allowing merge (fail-open)
+2026-03-15 15:22:13 | INFO | Merge gate activated for command: gh pr merge 7 --squash --auto
+2026-03-15 15:22:13 | WARNING | No pipeline state, allowing merge (fail-open)

@@ -1,0 +1,244 @@
+{
+    "env": {
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    },
+    "permissions": {
+        "allow": [
+            "Bash(*)",
+            "Write",
+            "Edit",
+            "Task"
+        ],
+        "deny": []
+    },
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/pre_tool_use.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/enforce_team_lead.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/require_team_create.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/enforce_review_isolation.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/merge_gate.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/enforce_branch_discipline.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/validate_plan_format.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/validate_task_description.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/validate_bug_routing.py"
+                    }
+                ]
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/post_tool_use.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/enforce_test_evidence.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/validate_bug_report.py"
+                    }
+                ]
+            },
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/validate_pr_test_evidence.py"
+                    }
+                ]
+            }
+        ],
+        "Stop": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/stop.py"
+                    }
+                ]
+            }
+        ],
+        "UserPromptSubmit": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/user_prompt_submit.py --log-only --store-last-prompt --name-agent"
+                    }
+                ]
+            }
+        ],
+        "PreCompact": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/pre_compact.py"
+                    }
+                ]
+            }
+        ],
+        "SessionStart": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/session_start.py"
+                    }
+                ]
+            }
+        ],
+        "SessionEnd": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/session_end.py"
+                    }
+                ]
+            }
+        ],
+        "PermissionRequest": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/permission_request.py --log-only"
+                    }
+                ]
+            }
+        ],
+        "PostToolUseFailure": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/post_tool_use_failure.py"
+                    }
+                ]
+            }
+        ],
+        "SubagentStart": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/subagent_start.py"
+                    }
+                ]
+            }
+        ],
+        "Setup": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "uv run $HOME/.claude/hooks/setup.py"
+                    }
+                ]
+            }
+        ]
+    },
+    "skipDangerousModePermissionPrompt": true,
+    "preferences": {
+        "tmuxSplitPanes": true
+    },
+    "teammateMode": "tmux",
+    "statusLine": {
+        "type": "command",
+        "command": "bash $HOME/.claude/statusline-command.sh"
+    }
+}
