@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Critique Pipeline — How a Strategy Doc Gets Red-Teamed</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap');
+
+    :root {
+      --ink: #1a1a1a;
+      --paper: #f5f2eb;
+      --cream: #ede9df;
+      --rule: #d4cfc2;
+      --accent: #c84b2f;
+      --blue: #2a5fa5;
+      --green: #2d7a4f;
+      --gold: #b08a2e;
+      --muted: #7a7468;
+      --code-bg: #1e1e1e;
+      --code-fg: #d4d0c8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    /* ── Masthead ── */
+    .masthead {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 64px 48px 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .masthead::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.04) 39px, rgba(255,255,255,0.04) 40px);
+      pointer-events: none;
+    }
+    .masthead-inner { max-width: 900px; margin: 0 auto; position: relative; }
+    .masthead-eyebrow {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 20px;
+    }
+    .masthead h1 {
+      font-size: clamp(36px, 5vw, 64px); font-weight: 300;
+      letter-spacing: -1px; line-height: 1.1; margin-bottom: 20px;
+    }
+    .masthead h1 em { font-style: italic; color: #c8c4b8; }
+    .masthead-sub { font-size: 18px; font-weight: 300; color: #9c9890; max-width: 640px; line-height: 1.5; }
+    .masthead-meta { margin-top: 40px; display: flex; gap: 32px; flex-wrap: wrap; }
+    .meta-item {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px;
+      color: #6a6860; text-transform: uppercase;
+    }
+    .meta-item span { color: #c8c4b8; display: block; font-size: 13px; letter-spacing: 0; margin-top: 2px; text-transform: none; }
+
+    /* ── TOC ── */
+    .toc-bar {
+      background: var(--cream); border-bottom: 1px solid var(--rule);
+      padding: 0 48px; position: sticky; top: 0; z-index: 100;
+    }
+    .toc-inner { max-width: 900px; margin: 0 auto; display: flex; overflow-x: auto; }
+    .toc-link {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); text-decoration: none;
+      padding: 14px 16px; border-bottom: 2px solid transparent; white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .toc-link:hover { color: var(--ink); border-color: var(--accent); }
+
+    /* ── Page & chapters ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 0 48px 80px; }
+    .chapter { margin-top: 80px; padding-top: 48px; border-top: 2px solid var(--ink); }
+    .chapter-number {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    }
+    .chapter h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 300; letter-spacing: -0.5px; line-height: 1.15; margin-bottom: 6px; }
+    .chapter-cmd {
+      font-family: 'DM Mono', monospace; font-size: 14px; color: var(--accent);
+      background: rgba(200,75,47,0.08); padding: 4px 10px; border-radius: 3px;
+      display: inline-block; margin-bottom: 24px;
+    }
+    .section { margin-top: 48px; }
+    .section h3 { font-size: 21px; font-weight: 400; letter-spacing: -0.3px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+    .lead {
+      font-size: 20px; font-weight: 300; font-style: italic; color: var(--muted);
+      margin-bottom: 28px; padding-left: 20px; border-left: 3px solid var(--rule); line-height: 1.5;
+    }
+    p + p { margin-top: 16px; }
+
+    .pullquote {
+      margin: 40px 0; padding: 24px 32px; background: var(--cream);
+      border-left: 4px solid var(--accent); font-size: 19px; font-style: italic;
+      font-weight: 300; line-height: 1.5;
+    }
+    .pullquote cite {
+      display: block; font-size: 12px; font-style: normal;
+      font-family: 'DM Mono', monospace; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-top: 12px;
+    }
+
+    /* ── Phase list ── */
+    .phase-list { list-style: none; margin: 24px 0; }
+    .phase-item { display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--rule); align-items: flex-start; }
+    .phase-num {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent);
+      background: rgba(200,75,47,0.08); padding: 4px 8px; border-radius: 3px;
+      flex-shrink: 0; margin-top: 2px; letter-spacing: 1px;
+    }
+    .phase-content strong { display: block; font-weight: 400; font-size: 15px; margin-bottom: 4px; }
+    .phase-content p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+    /* ── Callouts ── */
+    .callout { border-radius: 4px; padding: 18px 22px; margin: 24px 0; font-size: 15px; line-height: 1.6; }
+    .callout-novice { background: rgba(42,95,165,0.07); border-left: 3px solid var(--blue); }
+    .callout-advanced { background: rgba(45,122,79,0.07); border-left: 3px solid var(--green); }
+    .callout-label {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .callout-novice .callout-label { color: var(--blue); }
+    .callout-advanced .callout-label { color: var(--green); }
+
+    /* ── Cmd cards ── */
+    .cmd-trio {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+      background: var(--rule); border: 1px solid var(--rule); border-radius: 4px;
+      overflow: hidden; margin: 32px 0;
+    }
+    .cmd-card { background: var(--cream); padding: 24px 14px; text-align: center; }
+    .cmd-name { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+    .cmd-arrow { font-size: 24px; color: var(--rule); margin: 8px 0; }
+    .cmd-artifact { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+    .cmd-desc { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+    /* ── Skill grid (lenses) ── */
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin: 24px 0; }
+    .skill-card { background: var(--cream); border: 1px solid var(--rule); border-radius: 4px; padding: 16px 18px; }
+    .skill-name {
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+    }
+    .skill-where { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-style: italic; }
+    .skill-rule { font-size: 13px; line-height: 1.5; }
+
+    /* ── Tables ── */
+    .enf-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 24px 0; }
+    .enf-table th {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); text-align: left;
+      padding: 8px 12px; border-bottom: 2px solid var(--ink);
+    }
+    .enf-table td { padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.5; }
+    .enf-table tr:hover td { background: var(--cream); }
+    .enf-table td:first-child { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); }
+
+    .verdict { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    .v-severe { background: rgba(200,75,47,0.12); color: var(--accent); }
+    .v-material { background: rgba(176,138,46,0.14); color: var(--gold); }
+    .v-minor { background: rgba(42,95,165,0.10); color: var(--blue); }
+    .v-holds { background: rgba(45,122,79,0.10); color: var(--green); }
+
+    /* ── Diagrams ── */
+    .diagram-card { background: #faf8f3; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin: 32px 0; }
+    .diagram-card .mermaid { padding: 20px; background: #faf8f3; }
+    .diagram-label {
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      padding: 12px 20px 10px; border-bottom: 1px solid var(--rule);
+    }
+
+    code {
+      font-family: 'DM Mono', monospace; font-size: 0.85em;
+      background: var(--cream); padding: 1px 6px; border-radius: 3px;
+    }
+
+    footer {
+      background: var(--ink); color: #6a6860; padding: 32px 48px;
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px;
+      text-align: center; margin-top: 80px;
+    }
+
+    @media (max-width: 720px) {
+      .page, .toc-bar { padding-left: 24px; padding-right: 24px; }
+      .cmd-trio { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="masthead">
+    <div class="masthead-inner">
+      <div class="masthead-eyebrow">Aigile Playbook · Document Review</div>
+      <h1>The Critique Pipeline<br><em>how a strategy doc gets red-teamed</em></h1>
+      <div class="masthead-sub">
+        One command deploys a panel of AI specialist critics against a strategy document,
+        adversarially verifies every severe finding, and returns a claim-by-claim scoreboard
+        with a collaborative path back to the author. This is how it works — illustrated with
+        a real run against a real FinOps strategy document.
+      </div>
+      <div class="masthead-meta">
+        <div class="meta-item">Command<span>/critique_doc</span></div>
+        <div class="meta-item">Agents<span>16 in parallel</span></div>
+        <div class="meta-item">Claims<span>16 registered</span></div>
+        <div class="meta-item">Verified<span>8 findings, adversarially</span></div>
+        <div class="meta-item">Output<span>11 PDFs, PM-ready</span></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="toc-bar">
+    <div class="toc-inner">
+      <a class="toc-link" href="index.html" style="color: var(--accent);">&larr; Playbook</a>
+      <a class="toc-link" href="#pipeline">Pipeline</a>
+      <a class="toc-link" href="#register">Claims Register</a>
+      <a class="toc-link" href="#panel">The Panel</a>
+      <a class="toc-link" href="#verify">Verification</a>
+      <a class="toc-link" href="#synthesis">Synthesis</a>
+      <a class="toc-link" href="#why">Why It Works</a>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <!-- ═══════════ CH 1: PIPELINE ═══════════ -->
+    <div class="chapter" id="pipeline">
+      <div class="chapter-number">Chapter One</div>
+      <h2>One Command, Five Phases</h2>
+      <div class="chapter-cmd">/critique_doc &lt;document&gt; [quick|deep]</div>
+
+      <p class="lead">
+        You hand it a strategy document. It hands you back a verdict on every load-bearing claim —
+        each one attacked by a specialist, defended by a devil's advocate for the defense,
+        and stress-tested by an independent verifier before it reaches your desk.
+      </p>
+
+      <p>
+        The pipeline borrows a discipline from engineering review: the coordinator
+        <strong>never writes the critique itself</strong>. A lead agent extracts the document,
+        catalogs its claims, and then delegates every judgment to specialists who work in
+        parallel. Anything severe enough to embarrass the author gets independently
+        re-checked before it is allowed into the final report.
+      </p>
+
+      <div class="cmd-trio">
+        <div class="cmd-card">
+          <div class="cmd-name">1 · Ingest</div>
+          <div class="cmd-arrow">↓</div>
+          <div class="cmd-artifact">claims-register.md</div>
+          <div class="cmd-desc">Every checkable assertion gets an ID, an exact quote, and a lens assignment</div>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-name">2 · Panel</div>
+          <div class="cmd-arrow">↓</div>
+          <div class="cmd-artifact">7 lens reports</div>
+          <div class="cmd-desc">Seven specialists attack (and one defends) in parallel, with live web verification</div>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-name">3 · Verify</div>
+          <div class="cmd-arrow">↓</div>
+          <div class="cmd-artifact">8 verdicts</div>
+          <div class="cmd-desc">Independent verifiers try to refute every severe finding</div>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-name">4 · Synthesize</div>
+          <div class="cmd-arrow">↓</div>
+          <div class="cmd-artifact">scoreboard</div>
+          <div class="cmd-desc">One agent reads everything and writes the exec summary + synthesis</div>
+        </div>
+        <div class="cmd-card">
+          <div class="cmd-name">5 · Deliver</div>
+          <div class="cmd-arrow">↓</div>
+          <div class="cmd-artifact">11 PDFs</div>
+          <div class="cmd-desc">Leadership one-pager, full synthesis, deep-dives — ready to circulate</div>
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <div class="diagram-label">Fig. 1 — The full pipeline, as run against the FinOps strategy doc</div>
+        <pre class="mermaid">
+flowchart TD
+    DOC["Strategy doc<br/>(.docx)"] --> LEAD["Review Lead<br/>extracts text"]
+    LEAD --> REG["Claims Register<br/>16 claims, tagged & quoted"]
+    REG --> P1["citation-audit"]
+    REG --> P2["market-analysis"]
+    REG --> P3["economics"]
+    REG --> P4["feasibility"]
+    REG --> P5["persona"]
+    REG --> P6["logic-rhetoric"]
+    REG --> P7["steelman<br/>(defense)"]
+    P1 & P2 & P3 & P4 & P5 & P6 --> SEV{"FATAL / SEVERE<br/>findings?"}
+    SEV -->|"yes: 17 found"| VER["8 adversarial verifiers<br/>try to REFUTE each finding"]
+    VER --> APPLY["confirm · downgrade · kill"]
+    P7 --> SYN
+    APPLY --> SYN["Synthesizer<br/>scoreboard + patterns + next steps"]
+    SYN --> PDF["PDF deliverables<br/>exec summary · synthesis · deep-dives"]
+        </pre>
+      </div>
+
+      <div class="callout callout-novice">
+        <div class="callout-label">If you're new to this</div>
+        Think of it as convening a review board on demand. Instead of waiting weeks to get a
+        market analyst, a finance person, an architect, and a fact-checker into one room, the
+        command spins up an AI specialist for each role, has them read the same document
+        simultaneously, and requires every criticism to cite the exact quote it attacks and a
+        source anyone can check.
+      </div>
+    </div>
+
+    <!-- ═══════════ CH 2: CLAIMS REGISTER ═══════════ -->
+    <div class="chapter" id="register">
+      <div class="chapter-number">Chapter Two</div>
+      <h2>First, Turn Prose into Claims</h2>
+      <div class="chapter-cmd">Phase 1 · claims-register.md</div>
+
+      <p class="lead">
+        You cannot review a vibe. Before anyone criticizes anything, the document is
+        decomposed into discrete, quotable, load-bearing claims — each with an ID.
+      </p>
+
+      <p>
+        The register is the contract for the whole review. Each claim records the
+        <em>exact quote</em> (never a paraphrase), where it lives in the document, what kind
+        of claim it is, and which specialists will examine it. From the FinOps run:
+      </p>
+
+      <table class="enf-table">
+        <thead>
+          <tr><th>ID</th><th>Type</th><th>Claim (verbatim, elided)</th><th>Assigned lenses</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>C-01</td><td>market</td><td>"There is no single product in the market that solves this problem…"</td><td>market-analysis, logic-rhetoric</td></tr>
+          <tr><td>C-03</td><td>factual</td><td>"GPT-4 … costed $20/million tokens in 2022, today it costs $0.40/million … ~200x less"</td><td>citation-audit, economics</td></tr>
+          <tr><td>C-08</td><td>economic</td><td>"compare projected cost … on-prem versus in public cloud … before committing budget"</td><td>economics, feasibility</td></tr>
+          <tr><td>C-13</td><td>economic</td><td>"Idle or Underutilized VM Detection … shut down, resize, or consolidate"</td><td>economics, market-analysis</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Six claim types cover most strategy documents: <strong>factual</strong> (numbers, dates,
+        prices, citations), <strong>market</strong> ("no product exists"), <strong>economic</strong>
+        (cost logic, monetization), <strong>technical-feasibility</strong> (integration promises),
+        <strong>customer-persona</strong> (who buys, who acts), and <strong>logical-inference</strong>
+        ("X therefore Y"). Every factual claim automatically gets the fact-checker;
+        every claim gets the defense advocate.
+      </p>
+
+      <div class="pullquote">
+        Merge micro-claims that stand or fall together; split compound claims whose parts
+        have independent truth values. A 5–10 page strategy doc typically yields 8–16 claims.
+        <cite>— The register discipline</cite>
+      </div>
+    </div>
+
+    <!-- ═══════════ CH 3: THE PANEL ═══════════ -->
+    <div class="chapter" id="panel">
+      <div class="chapter-number">Chapter Three</div>
+      <h2>Seven Lenses, One Document</h2>
+      <div class="chapter-cmd">Phase 2 · parallel specialists</div>
+
+      <p class="lead">
+        Each specialist reads the whole document but attacks only the claims tagged for its
+        lens. Six prosecute. One — deliberately — defends.
+      </p>
+
+      <div class="skills-grid">
+        <div class="skill-card">
+          <div class="skill-name">citation-audit</div>
+          <div class="skill-where">every number, date, price, footnote</div>
+          <div class="skill-rule">Recomputes every ratio from the doc's own figures; checks whether the cited source type can even contain the claimed data. Live-verifies prices — never trusts memory.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">market-analysis</div>
+          <div class="skill-where">"no product exists" & demand claims</div>
+          <div class="skill-rule">Names actual competitors and fetches their current capabilities. Distinguishes "no product does this exact bundle" from "the need is unserved."</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">economics</div>
+          <div class="skill-where">cost logic & unit economics</div>
+          <div class="skill-rule">Hunts CAPEX/OPEX conflation and marginal-vs-average confusion. Breaks weak cost logic with a worked counter-example, not an abstract objection.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">feasibility</div>
+          <div class="skill-where">integration & plumbing promises</div>
+          <div class="skill-rule">For every "detects automatically" or "no credentials re-entered," enumerates what must actually exist. Flags data-platform projects disguised as UI features.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">persona</div>
+          <div class="skill-where">who buys, who acts</div>
+          <div class="skill-rule">Checks whether the people who own the optimization levers are even in the persona table. A tool whose advice nobody is chartered to execute has no theory of action.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">logic-rhetoric</div>
+          <div class="skill-where">the argument itself — doc text only</div>
+          <div class="skill-rule">Non sequiturs, category collapses, self-cancelling principles, load-bearing TBDs. Cites the document against itself; no web research allowed.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">steelman</div>
+          <div class="skill-where">every claim — the defense</div>
+          <div class="skill-rule">Writes the strongest honest defense of every claim and the narrowed form that would survive hostile review. Where no defense exists, says so — that admission is signal.</div>
+        </div>
+      </div>
+
+      <p>
+        Every finding follows one enforced format: the <strong>exact quote</strong>, a
+        <strong>verdict</strong> on a five-step scale, the <strong>analysis</strong> with explicit
+        arithmetic, an <strong>evidence table</strong> where every row is independently checkable,
+        a <strong>remediation</strong> (the narrowed claim that survives), and a
+        <strong>request to the author</strong> — a genuine question whose answer could change
+        the verdict.
+      </p>
+
+      <table class="enf-table">
+        <thead><tr><th>Verdict</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>FATAL</td><td>Structurally wrong; everything built on it inherits the error</td></tr>
+          <tr><td>SEVERE</td><td>Wrong or unsupportable as written; survives only materially narrowed</td></tr>
+          <tr><td>MATERIAL</td><td>Real weakness that changes conclusions at the margin</td></tr>
+          <tr><td>MINOR</td><td>Imprecision worth fixing; argument intact</td></tr>
+          <tr><td>HOLDS</td><td>Checked; it stands — conceded plainly</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-advanced">
+        <div class="callout-label">Why a defense advocate</div>
+        A red-team that only attacks is a strawman generator. The steelman covers all sixteen
+        claims and its output becomes the "what survives" section of the final report — the
+        honest kernel the author can rebuild on. On the FinOps run it found a defensible
+        narrowed form for <em>every</em> claim, which is exactly what makes the report usable
+        rather than merely bruising.
+      </div>
+    </div>
+
+    <!-- ═══════════ CH 4: VERIFICATION ═══════════ -->
+    <div class="chapter" id="verify">
+      <div class="chapter-number">Chapter Four</div>
+      <h2>Attack the Attackers</h2>
+      <div class="chapter-cmd">Phase 3 · adversarial verification</div>
+
+      <p class="lead">
+        The most dangerous output of any review is a confident, plausible, wrong criticism.
+        So every severe finding is handed to a fresh agent whose only job is to refute it.
+      </p>
+
+      <p>
+        Verifiers re-run the arithmetic, re-fetch every cited source themselves, and check
+        the quote against the document — did the specialist attack what the author actually
+        wrote, or a strawman? Each returns one of three outcomes: <strong>confirmed</strong>,
+        <strong>downgraded</strong>, or <strong>killed</strong>.
+      </p>
+
+      <div class="diagram-card">
+        <div class="diagram-label">Fig. 2 — What verification did to the FinOps run's severe findings</div>
+        <pre class="mermaid">
+flowchart LR
+    F["17 SEVERE findings<br/>from 6 attack lenses"] --> CAP["8 verified<br/>(load-bearing claims first)"]
+    CAP --> C["2 CONFIRMED<br/>C-01 market vacuum<br/>C-03 GPT-4 pricing"]
+    CAP --> D["6 DOWNGRADED<br/>3 to MATERIAL<br/>3 to MINOR"]
+    CAP --> K["0 KILLED"]
+        </pre>
+      </div>
+
+      <p>
+        On the FinOps run the verifiers <strong>downgraded six of the eight findings they
+        checked</strong> — catching real strawmen. One specialist had accused the document's
+        guiding principles of contradicting each other; the verifier showed the document's own
+        "velocity takes precedence" clause resolved the tension. Another had claimed a
+        placement comparison was "systematically wrong"; the verifier noticed the finding's
+        own worked example contradicted that. Both criticisms would have looked entirely
+        credible in a report. Neither survived a hostile re-check.
+      </p>
+
+      <div class="pullquote">
+        The verification round downgraded six of eight checked findings. That is signal
+        <em>for</em> the document, not against the review — the author's reasoning largely held
+        up under adversarial scrutiny. What did not hold up was factual precision.
+        <cite>— From the run's executive synthesis</cite>
+      </div>
+
+      <p>
+        And what verification confirms, it confirms hard. The two findings that survived were
+        re-proven from scratch: GPT-4 launched in March 2023, not 2022; its real launch price
+        was $30/M tokens, not $20; and the document's own figures ($20 ÷ $0.40) imply a 50x
+        drop while the same sentence asserts 200x. A claim that fails an audit twice,
+        independently, is safe to put in front of leadership.
+      </p>
+    </div>
+
+    <!-- ═══════════ CH 5: SYNTHESIS ═══════════ -->
+    <div class="chapter" id="synthesis">
+      <div class="chapter-number">Chapter Five</div>
+      <h2>From Findings to a Working Session</h2>
+      <div class="chapter-cmd">Phase 4–5 · synthesis & PDF delivery</div>
+
+      <p class="lead">
+        The final deliverable is not a takedown. It is the agenda for the next conversation
+        with the author — verdicts, patterns, what survives, and specific asks.
+      </p>
+
+      <p>
+        One synthesizer agent reads everything — the register, all seven lens reports, the
+        verification notes — and writes two documents: a full <strong>executive synthesis</strong>
+        and a one-page <strong>executive summary</strong> for leadership. The scoreboard leads:
+      </p>
+
+      <table class="enf-table">
+        <thead><tr><th>ID</th><th>Claim</th><th>Verdict</th><th>The kill shot</th></tr></thead>
+        <tbody>
+          <tr><td>C-01</td><td>"No single product spans private + public FinOps"</td><td><span class="verdict v-severe">SEVERE</span></td><td>CloudHealth and Flexera already sell unified on-prem + cloud FinOps today</td></tr>
+          <tr><td>C-03</td><td>GPT-4 "$20/M in 2022 → $0.40/M, ~200x less"</td><td><span class="verdict v-severe">SEVERE</span></td><td>The doc's own $20 ÷ $0.40 = 50x, not 200x; GPT-4 launched in 2023 at $30/M</td></tr>
+          <tr><td>C-13</td><td>VM optimization savings (US-5)</td><td><span class="verdict v-severe">SEVERE</span></td><td>"Shut down idle VM → save $280/mo" ignores prepaid commitments — net savings ≈ $0</td></tr>
+          <tr><td>C-08</td><td>On-prem vs. cloud placement (US-3)</td><td><span class="verdict v-material">MATERIAL</span></td><td>Comparing sunk CAPEX against cloud on-demand needs a stated cost basis the doc never gives</td></tr>
+          <tr><td>C-15</td><td>"Monetization path is TBD"</td><td><span class="verdict v-minor">MINOR</span></td><td>Stage-appropriate for a vision doc — verified and downgraded from SEVERE</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Below the scoreboard, the synthesis names the <strong>systemic patterns</strong> — the
+        few defect classes that generate most of the individual findings. On the FinOps run,
+        one cost-methodology decision (marginal cost for placement decisions, amortized for
+        chargeback, net-of-commitment for optimization) resolved four findings at once.
+        Fixing pattern classes beats patching sixteen claims one at a time.
+      </p>
+
+      <p>
+        Then the collaborative machinery — because the audience is the author, not a tribunal:
+      </p>
+
+      <ul class="phase-list">
+        <li class="phase-item">
+          <span class="phase-num">ASK</span>
+          <div class="phase-content">
+            <strong>Clarifications requested</strong>
+            <p>Six questions where the author's answer changes a verdict — e.g., "Is the $63k→$86k figure from CloudZero rather than the FinOps survey? If yes, this softens to MINOR — only the footnote needs re-attribution."</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <span class="phase-num">COMMENT</span>
+          <div class="phase-content">
+            <strong>Observations open for comment</strong>
+            <p>Findings where the panel may have missed context, stated as "we read §X as… — please confirm or correct," with an offer to re-verify.</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <span class="phase-num">MEET</span>
+          <div class="phase-content">
+            <strong>Suggested working session</strong>
+            <p>A four-item agenda ordered by leverage: cost methodology first (~45 min, resolves four findings), then release-scope lines, then a 20-minute citation cleanup that restores the document's credibility.</p>
+          </div>
+        </li>
+      </ul>
+
+      <p>
+        Everything renders to PDF into a dated folder — a leadership one-pager, the full
+        synthesis, the claims register, seven deep-dives, and one combined file for
+        circulation. Markdown working copies sit alongside for the next revision cycle.
+      </p>
+    </div>
+
+    <!-- ═══════════ CH 6: WHY ═══════════ -->
+    <div class="chapter" id="why">
+      <div class="chapter-number">Chapter Six</div>
+      <h2>Why It Works This Way</h2>
+
+      <p class="lead">
+        Four design choices carry the whole thing.
+      </p>
+
+      <ul class="phase-list">
+        <li class="phase-item">
+          <span class="phase-num">01</span>
+          <div class="phase-content">
+            <strong>The coordinator never critiques</strong>
+            <p>The lead extracts, registers, deploys, and reports — but writes no verdicts. Every judgment comes from a specialist with a narrow charter, so no single perspective (or single model's blind spot) dominates the review.</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <span class="phase-num">02</span>
+          <div class="phase-content">
+            <strong>Exact quotes and checkable evidence, or it doesn't count</strong>
+            <p>"I believe this is wrong" is not a finding. Every verdict cites the verbatim text it attacks; every factual refutation cites a source anyone can open. Claims that can't be verified either way are capped at MATERIAL and labeled UNVERIFIED.</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <span class="phase-num">03</span>
+          <div class="phase-content">
+            <strong>Severe criticism must survive its own red-team</strong>
+            <p>Verification is the review reviewing itself. On the FinOps run it filtered out six overstated findings that would each have looked convincing in a report — the difference between a credible review and a confident one.</p>
+          </div>
+        </li>
+        <li class="phase-item">
+          <span class="phase-num">04</span>
+          <div class="phase-content">
+            <strong>The severity scale carries the judgment; the prose carries the partnership</strong>
+            <p>Verdicts are unflinching, but every deliverable ends in questions, comment requests, and a standing offer to re-verify against new data. The output is the opening of a dialogue with the author, not a verdict handed down.</p>
+          </div>
+        </li>
+      </ul>
+
+      <div class="callout callout-novice">
+        <div class="callout-label">What a PM actually gets</div>
+        Roughly 25 minutes after handing over the document: a one-page summary saying what
+        holds and what doesn't, a scoreboard with the evidence one click deep, the short list
+        of questions that would change the verdicts, and a prioritized agenda for the revision
+        working session. The full run against the FinOps doc deployed 16 agents and produced
+        11 PDFs — with zero claims declared beyond rescue.
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    THE CRITIQUE PIPELINE · /critique_doc · A COMPANION TO THE AIGILE WORKFLOW
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      themeVariables: {
+        primaryColor: '#f0ede6', primaryTextColor: '#1a1a1a', primaryBorderColor: '#c4bfb2',
+        lineColor: '#7a7570', secondaryColor: '#e8e4dc', tertiaryColor: '#f5f2eb',
+        background: '#faf8f3', mainBkg: '#f0ede6', nodeBorder: '#c4bfb2',
+        clusterBkg: '#f5f2eb', clusterBorder: '#d4cfc2', titleColor: '#1a1a1a',
+        edgeLabelBackground: '#faf8f3', fontFamily: 'DM Mono, monospace', fontSize: '11px',
+      },
+      flowchart: { curve: 'basis', padding: 14, nodeSpacing: 28, rankSpacing: 44, useMaxWidth: true }
+    });
+  </script>
+</body>
+</html>
