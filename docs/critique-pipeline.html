@@ -207,27 +207,28 @@
       <div class="masthead-eyebrow">Aigile Playbook · Document Review</div>
       <h1>The Critique Pipeline<br><em>how a strategy doc gets red-teamed</em></h1>
       <div class="masthead-sub">
-        One command deploys a panel of AI specialist critics against a strategy document,
-        adversarially verifies every severe finding, and returns a claim-by-claim scoreboard
-        with a collaborative path back to the author. This is how it works — illustrated with
-        a real run against a real FinOps strategy document.
+        One command deploys a panel of twelve registered AI specialist agents against a strategy
+        document, hunts what it fails to say as hard as what it claims, adversarially verifies every
+        severe finding, and returns a claim-by-claim scoreboard with a collaborative path back to
+        the author. This is how it works — illustrated with a real run against a real FinOps
+        strategy document.
       </div>
       <div class="masthead-meta">
         <div class="meta-item">Command<span>/critique_doc</span></div>
-        <div class="meta-item">Agents<span>16 in parallel</span></div>
-        <div class="meta-item">Claims<span>16 registered</span></div>
+        <div class="meta-item">Roster<span>12 specialist agents</span></div>
+        <div class="meta-item">Claims<span>16 + 6 omissions</span></div>
         <div class="meta-item">Verified<span>8 findings, adversarially</span></div>
-        <div class="meta-item">Output<span>11 PDFs, PM-ready</span></div>
+        <div class="meta-item">Output<span>14 PDFs, PM-ready</span></div>
       </div>
     </div>
   </div>
 
   <nav class="toc-bar">
     <div class="toc-inner">
-      <a class="toc-link" href="index.html" style="color: var(--accent);">&larr; Playbook</a>
       <a class="toc-link" href="#pipeline">Pipeline</a>
       <a class="toc-link" href="#register">Claims Register</a>
       <a class="toc-link" href="#panel">The Panel</a>
+      <a class="toc-link" href="#roster">Agent Roster</a>
       <a class="toc-link" href="#verify">Verification</a>
       <a class="toc-link" href="#synthesis">Synthesis</a>
       <a class="toc-link" href="#why">Why It Works</a>
@@ -266,8 +267,8 @@
         <div class="cmd-card">
           <div class="cmd-name">2 · Panel</div>
           <div class="cmd-arrow">↓</div>
-          <div class="cmd-artifact">7 lens reports</div>
-          <div class="cmd-desc">Seven specialists attack (and one defends) in parallel, with live web verification</div>
+          <div class="cmd-artifact">9 lens reports</div>
+          <div class="cmd-desc">Six attack the claims, one hunts the silences, one defends, one judges craft — in parallel, with live web verification</div>
         </div>
         <div class="cmd-card">
           <div class="cmd-name">3 · Verify</div>
@@ -284,8 +285,8 @@
         <div class="cmd-card">
           <div class="cmd-name">5 · Deliver</div>
           <div class="cmd-arrow">↓</div>
-          <div class="cmd-artifact">11 PDFs</div>
-          <div class="cmd-desc">Leadership one-pager, full synthesis, deep-dives — ready to circulate</div>
+          <div class="cmd-artifact">14 PDFs</div>
+          <div class="cmd-desc">Leadership one-pager, full synthesis, commitment review, deep-dives — ready to circulate</div>
         </div>
       </div>
 
@@ -302,12 +303,16 @@ flowchart TD
     REG --> P5["persona"]
     REG --> P6["logic-rhetoric"]
     REG --> P7["steelman<br/>(defense)"]
-    P1 & P2 & P3 & P4 & P5 & P6 --> SEV{"FATAL / SEVERE<br/>findings?"}
-    SEV -->|"yes: 17 found"| VER["8 adversarial verifiers<br/>try to REFUTE each finding"]
+    LEAD --> P8["omissions<br/>(6 absence classes)"]
+    LEAD --> P9["product-craft<br/>(Cagan lens)"]
+    P1 & P2 & P3 & P4 & P5 & P6 & P8 --> SEV{"FATAL / SEVERE<br/>claims & omissions?"}
+    SEV -->|"yes, capped at 8"| VER["adversarial verifiers<br/>try to REFUTE each finding"]
     VER --> APPLY["confirm · downgrade · kill"]
     P7 --> SYN
+    P9 --> SYN
     APPLY --> SYN["Synthesizer<br/>scoreboard + patterns + next steps"]
-    SYN --> PDF["PDF deliverables<br/>exec summary · synthesis · deep-dives"]
+    SYN --> COM["commitment-review<br/>per-story ship-readiness"]
+    COM --> PDF["PDF deliverables<br/>exec summary · synthesis · deep-dives"]
         </pre>
       </div>
 
@@ -344,9 +349,9 @@ flowchart TD
         </thead>
         <tbody>
           <tr><td>C-01</td><td>market</td><td>"There is no single product in the market that solves this problem…"</td><td>market-analysis, logic-rhetoric</td></tr>
-          <tr><td>C-03</td><td>factual</td><td>"GPT-4 … costed $20/million tokens in 2022, today it costs $0.40/million … ~200x less"</td><td>citation-audit, economics</td></tr>
-          <tr><td>C-08</td><td>economic</td><td>"compare projected cost … on-prem versus in public cloud … before committing budget"</td><td>economics, feasibility</td></tr>
-          <tr><td>C-13</td><td>economic</td><td>"Idle or Underutilized VM Detection … shut down, resize, or consolidate"</td><td>economics, market-analysis</td></tr>
+          <tr><td>C-04</td><td>factual</td><td>"GPT-4 … costed $20/million tokens in 2022, today it costs $0.40/million … ~200x less"</td><td>citation-audit, economics</td></tr>
+          <tr><td>C-06</td><td>feasibility</td><td>"placement with model &amp; infrastructure considered together for a given job"</td><td>feasibility, economics</td></tr>
+          <tr><td>C-08</td><td>logical</td><td>"One entry point … for both workloads, infrastructure and public cloud use cases"</td><td>feasibility, logic-rhetoric</td></tr>
         </tbody>
       </table>
 
@@ -369,12 +374,13 @@ flowchart TD
     <!-- ═══════════ CH 3: THE PANEL ═══════════ -->
     <div class="chapter" id="panel">
       <div class="chapter-number">Chapter Three</div>
-      <h2>Seven Lenses, One Document</h2>
+      <h2>Eight Lenses, One Document</h2>
       <div class="chapter-cmd">Phase 2 · parallel specialists</div>
 
       <p class="lead">
         Each specialist reads the whole document but attacks only the claims tagged for its
-        lens. Six prosecute. One — deliberately — defends.
+        lens. Six prosecute the stated claims. One hunts the silences. One — deliberately —
+        defends. A ninth, the product-craft reviewer, judges the craft rather than the truth.
       </p>
 
       <div class="skills-grid">
@@ -409,9 +415,19 @@ flowchart TD
           <div class="skill-rule">Non sequiturs, category collapses, self-cancelling principles, load-bearing TBDs. Cites the document against itself; no web research allowed.</div>
         </div>
         <div class="skill-card">
+          <div class="skill-name">omissions</div>
+          <div class="skill-where">what the document doesn't say</div>
+          <div class="skill-rule">The one lens not scoped to the register. Hunts six absence classes — adjacent categories already shipped, mechanism-free features, missing trust specs, thesis-vs-scope mismatch, decision-context gaps, load-bearing unmade decisions. Its findings get O-IDs and are verified like any claim.</div>
+        </div>
+        <div class="skill-card">
           <div class="skill-name">steelman</div>
           <div class="skill-where">every claim — the defense</div>
-          <div class="skill-rule">Writes the strongest honest defense of every claim and the narrowed form that would survive hostile review. Where no defense exists, says so — that admission is signal.</div>
+          <div class="skill-rule">Writes the strongest honest defense of every claim and the narrowed form that would survive hostile review. Ends with "the reconstructed strategy" — the strongest version built from the org's real assets. Where no defense exists, says so; that admission is signal.</div>
+        </div>
+        <div class="skill-card">
+          <div class="skill-name">product-craft</div>
+          <div class="skill-where">craft, not truth (Cagan / SVPG lens)</div>
+          <div class="skill-rule">Judges the Four Big Risks (value, usability, feasibility, viability) and whether success is defined as an outcome or an output. Reviews the doc as a whole; its findings aren't falsifiable, so they skip verification and flow straight to synthesis.</div>
         </div>
       </div>
 
@@ -445,6 +461,65 @@ flowchart TD
       </div>
     </div>
 
+    <!-- ═══════════ CH 3.5: AGENT ROSTER ═══════════ -->
+    <div class="chapter" id="roster">
+      <div class="chapter-number">Chapter Three · Appendix</div>
+      <h2>The Registered Roster</h2>
+      <div class="chapter-cmd">~/.claude/agents/critique-*.md</div>
+
+      <p class="lead">
+        The v2 refactor moved every specialist out of the orchestrator and into its own
+        agent definition. Twelve files, each carrying its own charter, finding format, and
+        reply shape — versioned, prefix-cached across runs, and individually invocable.
+      </p>
+
+      <p>
+        The coordinator's task prompts carry only run-specific paths; everything about
+        <em>how</em> a lens works lives in its <code>.md</code> definition. That is what makes
+        the panel composable — another command can borrow the fact-checker, and the contract
+        between orchestrator and agents is a single versioned section rather than prose
+        scattered through a 900-line prompt.
+      </p>
+
+      <table class="enf-table">
+        <thead>
+          <tr><th>Agent</th><th>Phase</th><th>Role</th><th>Web?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>citation-audit</td><td>2 · panel</td><td>Audits every number, date, price, product name, and footnote against live sources; recomputes ratios; flags structurally impossible citations.</td><td>yes</td></tr>
+          <tr><td>market-analysis</td><td>2 · panel</td><td>Attacks "no product exists" and "demand will grow" by naming real competitors with web-verified capabilities.</td><td>yes</td></tr>
+          <tr><td>economics</td><td>2 · panel</td><td>Breaks cost logic — CAPEX/OPEX conflation, marginal-vs-average, unit economics without a unit — with worked counter-arithmetic.</td><td>yes</td></tr>
+          <tr><td>feasibility</td><td>2 · panel</td><td>Enumerates what must exist behind every integration promise; flags data-platform work disguised as UI.</td><td>yes</td></tr>
+          <tr><td>persona</td><td>2 · panel</td><td>Tests JTBD reality, missing action-owning personas, persona-feature inversions, internal tools bundled as customer products.</td><td>yes</td></tr>
+          <tr><td>logic-rhetoric</td><td>2 · panel</td><td>Attacks argument structure using only the document's own text; maps the claim dependency chain. No web research.</td><td>no</td></tr>
+          <tr><td>omissions</td><td>2 · panel</td><td>The blind-spot auditor — six absence classes; findings get O-IDs and enter verification. Not scoped to the register.</td><td>yes</td></tr>
+          <tr><td>steelman</td><td>2 · panel</td><td>Blue team. Strongest honest defense of every claim, plus "the reconstructed strategy" built from real assets.</td><td>yes</td></tr>
+          <tr><td>product-craft</td><td>2 · panel</td><td>Cagan/SVPG lens — Four Big Risks and outcome-vs-output success. Judges craft, not truth; skips verification.</td><td>no</td></tr>
+          <tr><td>verifier</td><td>3 · verify</td><td>Receives one FATAL/SEVERE finding and tries to refute it; re-runs arithmetic, re-fetches sources, checks quotes. Returns confirm/downgrade/kill.</td><td>yes</td></tr>
+          <tr><td>synthesizer</td><td>4 · synthesis</td><td>The only agent that reads everything; writes the executive synthesis and the one-page summary.</td><td>no</td></tr>
+          <tr><td>commitment-review</td><td>4.5 · commit</td><td>Cross-walks every finding onto the doc's user stories; each gets a ship-readiness disposition. Introduces no new verdicts.</td><td>no</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-advanced">
+        <div class="callout-label">The contract that binds them</div>
+        All twelve agents share one versioned interface — the finding format, the five-step
+        severity scale, the C-IDs / O-IDs, and each agent's JSON reply shape. Change the
+        contract and you bump its version and update every file that states it. It plays the
+        same role a type surface plays in a build spec: the one artifact every worker agrees on.
+      </div>
+
+      <div class="callout callout-novice">
+        <div class="callout-label">Why nine attack but only six are "register-scoped"</div>
+        Six lenses examine claims pulled from the register. Omissions can't — its whole subject
+        is what the register could never contain, so it self-directs against the document.
+        Steelman defends rather than prosecutes, and product-craft judges craft rather than
+        truth. That division is deliberate: it was added after an early run matched a human
+        review on every stated claim yet missed all four of the reviewer's best findings —
+        because all four were absences.
+      </div>
+    </div>
+
     <!-- ═══════════ CH 4: VERIFICATION ═══════════ -->
     <div class="chapter" id="verify">
       <div class="chapter-number">Chapter Four</div>
@@ -467,36 +542,39 @@ flowchart TD
         <div class="diagram-label">Fig. 2 — What verification did to the FinOps run's severe findings</div>
         <pre class="mermaid">
 flowchart LR
-    F["17 SEVERE findings<br/>from 6 attack lenses"] --> CAP["8 verified<br/>(load-bearing claims first)"]
-    CAP --> C["2 CONFIRMED<br/>C-01 market vacuum<br/>C-03 GPT-4 pricing"]
-    CAP --> D["6 DOWNGRADED<br/>3 to MATERIAL<br/>3 to MINOR"]
+    F["SEVERE findings<br/>from 7 attack lenses<br/>(6 claim + omissions)"] --> CAP["8 verified<br/>(load-bearing first, capped at 8)"]
+    CAP --> C["1 CONFIRMED<br/>O-06 no cross-source<br/>identity model"]
+    CAP --> D["7 DOWNGRADED<br/>4 to MATERIAL<br/>3 to MINOR"]
     CAP --> K["0 KILLED"]
         </pre>
       </div>
 
       <p>
-        On the FinOps run the verifiers <strong>downgraded six of the eight findings they
-        checked</strong> — catching real strawmen. One specialist had accused the document's
-        guiding principles of contradicting each other; the verifier showed the document's own
-        "velocity takes precedence" clause resolved the tension. Another had claimed a
-        placement comparison was "systematically wrong"; the verifier noticed the finding's
-        own worked example contradicted that. Both criticisms would have looked entirely
-        credible in a report. Neither survived a hostile re-check.
+        On the FinOps run the verifiers <strong>downgraded seven of the eight findings they
+        checked</strong> — catching real strawmen. A feasibility finding had assumed a Morpheus
+        credential carries no cost-data scope; the verifier found Morpheus costing actually
+        ingests AWS Cost and Usage Report data on that same credential, and the SEVERE collapsed
+        to MINOR. A persona finding had read an "answer-only" clause as hiding a chatbot's
+        lineage; the verifier showed the clause merely scopes the feature read-only. Both
+        criticisms would have looked entirely credible in a report. Neither survived a hostile
+        re-check.
       </p>
 
       <div class="pullquote">
-        The verification round downgraded six of eight checked findings. That is signal
-        <em>for</em> the document, not against the review — the author's reasoning largely held
-        up under adversarial scrutiny. What did not hold up was factual precision.
+        The verification round downgraded seven of eight checked findings. That is signal
+        <em>for</em> the document, not against the review — the panel's first-pass severities
+        ran hot, and only adversarial re-checking produced a defensible scoreboard.
         <cite>— From the run's executive synthesis</cite>
       </div>
 
       <p>
-        And what verification confirms, it confirms hard. The two findings that survived were
-        re-proven from scratch: GPT-4 launched in March 2023, not 2022; its real launch price
-        was $30/M tokens, not $20; and the document's own figures ($20 ÷ $0.40) imply a 50x
-        drop while the same sentence asserts 200x. A claim that fails an audit twice,
-        independently, is safe to put in front of leadership.
+        And what verification confirms, it confirms hard. The one finding that survived at full
+        severity — <strong>O-06</strong>, an omission — was re-proven from scratch: nothing in
+        the document defines a single identity key that maps a cost from Morpheus, HPE Flex,
+        three public clouds, and token usage onto the same "business unit." Three of the six
+        features that silently depend on it are P0. "By BU" is an output over an undefined
+        dimension — unbuildable as specified. A finding that survives a hostile re-check by an
+        agent paid to kill it is safe to put in front of leadership.
       </p>
     </div>
 
@@ -512,28 +590,28 @@ flowchart LR
       </p>
 
       <p>
-        One synthesizer agent reads everything — the register, all seven lens reports, the
+        One synthesizer agent reads everything — the register, all nine lens reports, the
         verification notes — and writes two documents: a full <strong>executive synthesis</strong>
         and a one-page <strong>executive summary</strong> for leadership. The scoreboard leads:
       </p>
 
       <table class="enf-table">
-        <thead><tr><th>ID</th><th>Claim</th><th>Verdict</th><th>The kill shot</th></tr></thead>
+        <thead><tr><th>ID</th><th>Claim / omission</th><th>Verdict</th><th>The kill shot</th></tr></thead>
         <tbody>
-          <tr><td>C-01</td><td>"No single product spans private + public FinOps"</td><td><span class="verdict v-severe">SEVERE</span></td><td>CloudHealth and Flexera already sell unified on-prem + cloud FinOps today</td></tr>
-          <tr><td>C-03</td><td>GPT-4 "$20/M in 2022 → $0.40/M, ~200x less"</td><td><span class="verdict v-severe">SEVERE</span></td><td>The doc's own $20 ÷ $0.40 = 50x, not 200x; GPT-4 launched in 2023 at $30/M</td></tr>
-          <tr><td>C-13</td><td>VM optimization savings (US-5)</td><td><span class="verdict v-severe">SEVERE</span></td><td>"Shut down idle VM → save $280/mo" ignores prepaid commitments — net savings ≈ $0</td></tr>
-          <tr><td>C-08</td><td>On-prem vs. cloud placement (US-3)</td><td><span class="verdict v-material">MATERIAL</span></td><td>Comparing sunk CAPEX against cloud on-demand needs a stated cost basis the doc never gives</td></tr>
-          <tr><td>C-15</td><td>"Monetization path is TBD"</td><td><span class="verdict v-minor">MINOR</span></td><td>Stage-appropriate for a vision doc — verified and downgraded from SEVERE</td></tr>
+          <tr><td>O-06</td><td>No cross-source BU/project identity model anywhere</td><td><span class="verdict v-severe">SEVERE</span></td><td>Four sources, four native identity systems, nothing reconciles them — and 3 of 6 dependent features are P0. Survived verification intact.</td></tr>
+          <tr><td>C-04</td><td>GPT-4 "$20/M in 2022 → $0.40/M, ~200x less"</td><td><span class="verdict v-severe">SEVERE</span></td><td>The doc's own $20 ÷ $0.40 = 50x, not 200x; GPT-4 launched in 2023 at $30/M — and the cited FinOps survey carries no token prices</td></tr>
+          <tr><td>C-01</td><td>"No single product spans private + public FinOps"</td><td><span class="verdict v-material">MATERIAL</span></td><td>Flexera One is a live counterexample, so "does not exist" fails — but the on-prem/Flex wedge survives. Downgraded from SEVERE.</td></tr>
+          <tr><td>O-01</td><td>Names no incumbent; never separates moat from catch-up</td><td><span class="verdict v-material">MATERIAL</span></td><td>Vantage, CAST AI, and the FOCUS spec already ship most of US-4/5/7 — but the on-prem slice is genuinely unserved. Downgraded from SEVERE.</td></tr>
+          <tr><td>C-07</td><td>Reuse Morpheus clouds, "no credentials re-entered"</td><td><span class="verdict v-minor">MINOR</span></td><td>Premise refuted — Morpheus costing ingests AWS CUR on the same credential. Downgraded from SEVERE.</td></tr>
         </tbody>
       </table>
 
       <p>
         Below the scoreboard, the synthesis names the <strong>systemic patterns</strong> — the
         few defect classes that generate most of the individual findings. On the FinOps run,
-        one cost-methodology decision (marginal cost for placement decisions, amortized for
-        chargeback, net-of-commitment for optimization) resolved four findings at once.
-        Fixing pattern classes beats patching sixteen claims one at a time.
+        one unmade architecture decision (the cross-source identity model, O-06) blocked four
+        separate features at once, and one cost-methodology choice resolved several economics
+        findings together. Fixing pattern classes beats patching claims one at a time.
       </p>
 
       <p>
@@ -566,8 +644,8 @@ flowchart LR
 
       <p>
         Everything renders to PDF into a dated folder — a leadership one-pager, the full
-        synthesis, the claims register, seven deep-dives, and one combined file for
-        circulation. Markdown working copies sit alongside for the next revision cycle.
+        synthesis, the commitment review, the claims register, nine deep-dives, and one combined
+        file for circulation. Markdown working copies sit alongside for the next revision cycle.
       </p>
     </div>
 
@@ -616,8 +694,10 @@ flowchart LR
         Roughly 25 minutes after handing over the document: a one-page summary saying what
         holds and what doesn't, a scoreboard with the evidence one click deep, the short list
         of questions that would change the verdicts, and a prioritized agenda for the revision
-        working session. The full run against the FinOps doc deployed 16 agents and produced
-        11 PDFs — with zero claims declared beyond rescue.
+        working session, plus a per-story ship-readiness call so leadership funds commitments,
+        not claims. The full run against the FinOps doc deployed a nine-agent panel, eight
+        adversarial verifiers, a synthesizer, and a commitment reviewer, and produced 14 PDFs —
+        with zero claims declared beyond rescue.
       </div>
     </div>
 
